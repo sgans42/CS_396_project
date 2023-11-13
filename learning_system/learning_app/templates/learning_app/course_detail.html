@@ -1,0 +1,52 @@
+{% extends "learning_app/base.html" %}
+{% block content %}
+<article class="media content-section">
+    <img class="rounded-circle article-img" src="{{ object.author.profile.image.url }}">
+    <div class="media-body">
+        <div class="article-metadata">
+            <a class="mr-2" href="#">{{ object.author }}</a>
+            <small class="text-muted">{{ object.date_posted|date:"F d, Y" }}</small>
+
+
+                {% if request.user.profile.role == 'STUDENT' and user not in object.enrolled_students.all %}
+                    <form action="{% url 'course-enroll' object.code %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">Join Course</button>
+                    </form>
+                {% endif %}
+
+            {% if object.author == request.user %}
+            <div>
+<!--                delete and update-->
+            </div>
+            {% endif %}
+        </div>
+        <h2 class="article-title">{{ object.title }}</h2>
+        <p class="article-content">{{ object.description }}</p>
+
+        <!-- Additional details like subject name, etc. -->
+    </div>
+
+
+
+
+
+</article>
+    <h2>Lessons</h2>
+    <ul>
+    {% for lesson in lessons %}
+        <li>{{ lesson.title }} - <a href="{% url 'lesson-detail' lesson.id %}">View</a></li>
+        {% empty %}
+        <li>No lessons available.</li>
+    {% endfor %}
+    </ul>
+
+    <h2>Exercises</h2>
+    <ul>
+    {% for exercise in exercises %}
+        <li>{{ exercise.title }} - <a href="{% url 'exercise-detail' exercise.id %}">View</a></li>
+    {% empty %}
+        <li>No exercises available.</li>
+    {% endfor %}
+    </ul>
+{% endblock content %}

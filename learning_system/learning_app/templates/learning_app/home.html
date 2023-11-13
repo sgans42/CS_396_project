@@ -1,0 +1,76 @@
+{% extends "learning_app/base.html" %}
+{% block content %}
+    <h1>Blog Posts </h1>
+
+    <form method="get" action="." class="mb-4">
+        <select name="ordering" id="ordering" class="form-select" onchange="this.form.submit()">
+            <option value="newest" {% if current_ordering == 'newest' %}selected{% endif %}>Newest</option>
+            <option value="oldest" {% if current_ordering == 'oldest' %}selected{% endif %}>Oldest</option>
+            <option value="most_views" {% if current_ordering == 'most_views' %}selected{% endif %}>Most views</option>
+        </select>
+
+        <select name="items_per_page" onchange="this.form.submit()">
+            <option value="5" {% if current_items_per_page == 5 %}selected{% endif %}>5 per page</option>
+            <option value="10" {% if current_items_per_page == 10 %}selected{% endif %}>10 per page</option>
+            <option value="20" {% if current_items_per_page == 20 %}selected{% endif %}>20 per page</option>
+        </select>
+    </form>
+
+
+    {% for post in page_obj  %}
+        <article class="media content-section">
+            <img class="rounded-circle article-img" src="{{ post.author.profile.image.url }}">
+            <div class="media-body">
+                <div class="article-metadata">
+
+              <a class="mr-2" href="{% url 'user-posts' post.author.username %}">{{ post.author }}</a>
+                    <small class="text-muted">{{ post.date|date:"F d, Y" }}</small>
+                    <p class="post-visits">
+                        <small class="text-muted">Visits: {{ post.post_visits }}</small>
+                    </p>
+
+                </div>
+                <h2><a class="article-title " href="{% url 'post-detail' post.id %}">{{ post.title }}</a></h2>
+                <p class="article-content">{{ post.content }}</p>
+            </div>
+        </article>
+    {% endfor %}
+
+    {% if is_paginated %}
+        {% with request.GET.urlencode as query_string %}
+            {% if page_obj.has_previous %}
+                <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+
+            {% if page_obj.number > 3 %}
+                <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page=1">1</a>
+                {% if page_obj.number > 4 %}
+                    <span class="mb-4">...</span>
+                {% endif %}
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                    {% if num == page_obj.number %}
+                        <a class="btn btn-info mb-4" href="?{{ query_string|safe }}&page={{ num }}">{{ num }}</a>  {# Current page #}
+                    {% else %}
+                        <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ num }}">{{ num }}</a>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.number < page_obj.paginator.num_pages|add:"-2" %}
+                {% if page_obj.number < page_obj.paginator.num_pages|add:"-3" %}
+                    <span class="mb-4">...</span>
+                {% endif %}
+                <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+                <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        {% endwith %}
+    {% endif %}
+
+
+{% endblock content %}

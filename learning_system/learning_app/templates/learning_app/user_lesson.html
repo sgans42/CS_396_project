@@ -1,0 +1,24 @@
+{% extends "learning_app/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+
+    <h1 class="mb-3" >Lessons by {{ view.kwargs.username }}. </h1>
+
+    {% for lesson in lessons %}
+        <article class="media content-section">
+            <img class="rounded-circle article-img" src="{{ lesson.author.profile.image.url }}">
+            <div class="media-body">
+                <div class="article-metadata">
+
+                    <a class="mr-2" href="{% url 'user-lessons' lesson.author.username %}">{{ lesson.author }}</a>
+                    <small class="text-muted">{{ lesson.date|date:"F d, Y" }}</small>
+
+                </div>
+                <h2><a class="article-title " href="{% url 'lesson-detail' lesson.id %}">{{ lesson.title }}</a></h2>
+                <p class="article-content">{{ lesson.content|slice:":250"  }}...</p>
+            </div>
+        </article>
+    {% endfor %}
+
+
+{% endblock content %}

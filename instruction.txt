@@ -1,0 +1,46 @@
+make folder
+"pip install python"
+"pip install django"
+"pip install django-crispy-forms==1.9.2"
+"pip install Pillow"
+
+"python -m venv env" make virtual enviorment
+"django-admin startproject django_project" makes the project
+"python manage.py startapp blog" makes the app
+make a urls.py in the app section
+
+
+
+
+python manage.py runserver
+python manage.py migrate
+python manage.py makemigrations
+	detects changes and prepares django 
+
+test accounts;
+teacher2
+2teacher0
+2teacher1
+
+grimthereaper
+Student0
+2student0
+2student1
+
+Testpas12
+
+
+Courses; 
+code; TEST-CODE_123
+code; TEST-CODE_4321
+code; TEST-CODE_987
+
+@gmail.com
+
+
+ http://127.0.0.1:8000/
+
+Issues;
+paginate: 5 per page, last page
+make admin be able to create everything
+register: teacher input 

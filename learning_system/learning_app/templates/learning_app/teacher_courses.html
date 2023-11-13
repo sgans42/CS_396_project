@@ -1,0 +1,26 @@
+{% extends "learning_app/base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Courses I've Created</h1>
+
+<div>
+    {% for course in courses %}
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{{ course.title }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{ course.subject.name }}</h6>
+                <p class="card-text">{{ course.description|truncatechars:100 }}</p>
+                <a href="{% url 'course-detail' course.id %}" class="btn btn-primary">View Course</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <p>You have not created any courses yet.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock content %}

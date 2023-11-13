@@ -1,0 +1,28 @@
+{% extends "learning_app/base.html" %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% block content %}
+    <div class="content-section">
+        <form method="POST">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">New Exercise</legend>
+                {{ form|crispy }}
+            </fieldset>
+            {{ questions.management_form|crispy }} {# Includes management form data required by formset #}
+            {% for question_form, choice_formset in questions|zip:choices %}
+                <fieldset class="form-group">
+                    <legend class="border-bottom mb-4">Question</legend>
+                    {{ question_form|crispy }}
+                    {{ choice_formset.management_form|crispy }}
+                    {% for choice_form in choice_formset %}
+                        {{ choice_form|crispy }}
+                    {% endfor %}
+                </fieldset>
+            {% endfor %}
+            <div class="form-group">
+                <button class="btn btn-outline-info" type="submit">Post Exercise</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

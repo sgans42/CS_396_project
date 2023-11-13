@@ -1,0 +1,93 @@
+{
+	"tables": {},
+	"relations": {},
+	"notes": {},
+	"lines": {},
+	"model": {
+		"name": "learning_viz_1",
+		"id": "70fdf0dd-f593-40c0-8da4-78a23e9da43e",
+		"activeDiagram": "bdcfe933-0d58-4b05-8cde-3c98eb4227d4",
+		"desc": "",
+		"path": "",
+		"type": "SQLITE",
+		"version": 1,
+		"parentTableInFkCols": true,
+		"caseConvention": "under",
+		"replaceSpace": "_",
+		"color": "transparent",
+		"sideSelections": true,
+		"isDirty": true,
+		"storedin": {
+			"major": 7,
+			"minor": 4,
+			"extra": 2
+		},
+		"laststoredin": {
+			"major": 7,
+			"minor": 4,
+			"extra": 2
+		},
+		"writeFileParam": false,
+		"authorName": "",
+		"companyDetails": "",
+		"companyUrl": "",
+		"def_coltopk": true,
+		"sqlSettings": {
+			"wrapLines": true,
+			"wrapOffset": 80,
+			"indent": true,
+			"indentationString": "spaces",
+			"indentationSize": 2,
+			"limitItemsOnLine": true,
+			"maxListItemsOnLine": 3,
+			"statementDelimiter": ";",
+			"routineDelimiter": ";",
+			"keywordCase": "upper",
+			"identiferCase": "original"
+		}
+	},
+	"otherObjects": {},
+	"diagrams": {
+		"bdcfe933-0d58-4b05-8cde-3c98eb4227d4": {
+			"name": "Main Diagram",
+			"description": "",
+			"id": "bdcfe933-0d58-4b05-8cde-3c98eb4227d4",
+			"keysgraphics": true,
+			"linegraphics": "detailed",
+			"zoom": 1,
+			"background": "transparent",
+			"lineColor": "transparent",
+			"isOpen": true,
+			"main": true,
+			"diagramItems": {},
+			"scroll": {
+				"x": 0,
+				"y": 0
+			},
+			"type": "erd",
+			"showHorizontal": true,
+			"showDescriptions": true,
+			"showIndicators": true,
+			"showProgress": true,
+			"lineWidth": "2",
+			"boxSize": "0",
+			"showIndicatorCaptions": true,
+			"showEstimatedSize": false,
+			"showSchemaContainer": true,
+			"showEmbeddedInParents": true,
+			"showCardinalityCaptions": true,
+			"showColumns": true,
+			"showColumnDataTypes": true,
+			"showSampleData": false,
+			"showTableIndexes": true,
+			"showTableDescriptions": false,
+			"showRelations": true,
+			"backgroundImage": "na",
+			"descriptionsColor": "transparent",
+			"embeddedSpacing": "2"
+		}
+	},
+	"order": [],
+	"collapsedTreeItems": [],
+	"reverseStats": {}
+}
