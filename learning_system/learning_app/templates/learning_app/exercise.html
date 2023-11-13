@@ -4,6 +4,15 @@
 
     <h1>Exercises</h1>
 
+<div class="mb-3">
+    <form method="get" class="form-inline my-2 my-lg-0">
+        <input type="text" name="search_query" placeholder="Search Exercise..."
+               value="{{ request.GET.search_query }}" class="form-control mr-sm-2">
+        <button class="btn btn-primary my-2 my-sm-0" type="submit">Search</button>
+    </form>
+</div>
+
+
     {% for exercise in exercises %}
     <article class="media content-section">
         <img class="rounded-circle article-img" src="{{ exercise.author.profile.image.url }}">

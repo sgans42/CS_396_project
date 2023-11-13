@@ -17,7 +17,11 @@
         </div>
         <div class="content-section">
             <h2 class="article-title">{{ exercise.title }}</h2>
-            <a href="{% url 'exercise-take' exercise.id %}" class="btn btn-primary">Take Quiz</a>
+            {% if previous_attempts|length < 3 %}
+                <a href="{% url 'exercise-take' exercise.id %}" class="btn btn-primary">Take Quiz</a>
+            {% else %}
+                <p>You have reached the maximum number of attempts for this quiz.</p>
+            {% endif %}
         </div>
         <p class="content-section">{{ exercise.content }}</p>
 

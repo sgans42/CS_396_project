@@ -38,6 +38,11 @@ class PostForm(forms.ModelForm):
         fields = ['title', 'content', 'uploaded_file']
 
 
+class PostSearchForm(forms.Form):
+    search_query = forms.CharField(required=False, label='Search Posts')
+
+
+
 class LessonForm(forms.ModelForm):
     course = forms.ModelChoiceField(queryset=Course.objects.all(), required=False, label="Select a Course")
 

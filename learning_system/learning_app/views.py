@@ -13,7 +13,7 @@ from .models import (Post, Reply, Lesson,
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
                     QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
-                    UpdateChoiceFormSet
+                    UpdateChoiceFormSet, PostSearchForm
                     )
 from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView
@@ -151,16 +151,23 @@ class PostListView(ListView):
         return ordering
 
     def get_queryset(self):
-        return Post.objects.all().order_by(self.get_ordering())
+        queryset = super().get_queryset().order_by(self.get_ordering())
+        search_query = self.request.GET.get('search_query', '')  # Get the search query
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(content__icontains=search_query)
+            )
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Handle items per page dynamically
         items_per_page = self.request.GET.get('items_per_page', 10)
         current_items_per_page = int(items_per_page)
 
-        # Pagination logic
         paginator = Paginator(self.get_queryset(), current_items_per_page)
         page = self.request.GET.get('page')
 
@@ -174,6 +181,7 @@ class PostListView(ListView):
         context['page_obj'] = posts
         context['current_items_per_page'] = current_items_per_page
         context['current_ordering'] = self.current_ordering
+        context['search_form'] = PostSearchForm(self.request.GET or None)  # Add the search form
         return context
 
 
@@ -247,6 +255,19 @@ class LessonListView(ListView): #shows all lessons
     context_object_name = 'lessons'
     ordering = ['-date']
 
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by('-date')
+        search_query = self.request.GET.get('search_query', '')
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(content__icontains=search_query)
+            )
+
+        return queryset
+
+
 
 class LessonDetailView(DetailView):
     model = Lesson
@@ -307,6 +328,19 @@ class ExerciseListView(ListView):
     template_name = 'learning_app/exercise.html'
     context_object_name = 'exercises'
     ordering = ['-date']
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by('-date')
+        search_query = self.request.GET.get('search_query', '')
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(content__icontains=search_query)
+            )
+
+        return queryset
+
 
 
 class ExerciseDetailView(LoginRequiredMixin, DetailView):
