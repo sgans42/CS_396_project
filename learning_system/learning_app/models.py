@@ -133,7 +133,7 @@ class Question(models.Model):
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
     choice_text = models.CharField(max_length=200)
-    is_correct = models.BooleanField(default=False)  # new field to indicate the correct answer
+    is_correct = models.BooleanField(default=False)
 
     def __str__(self):
         return self.choice_text
@@ -142,20 +142,16 @@ class Choice(models.Model):
 class Attempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
-    date = models.DateTimeField(auto_now_add=True)  # date of the attempt
+    date = models.DateTimeField(auto_now_add=True)
     score = models.IntegerField()
     attempt_number = models.IntegerField(default=0)
 
 
     def save(self, *args, **kwargs):
-        # Check if this is a new attempt by looking for a primary key (id)
         if not self.pk:
-            # Count the number of attempts for this user and exercise
             num_attempts = Attempt.objects.filter(user=self.user, exercise=self.exercise).count()
             if num_attempts >= 3:
-                # If the user already has three attempts, raise a ValidationError
                 raise ValidationError('You can only have a maximum of three attempts per exercise.')
-            # If there are fewer than three attempts, set the attempt_number
             self.attempt_number = num_attempts + 1
         super(Attempt, self).save(*args, **kwargs)
 
@@ -165,11 +161,11 @@ class Attempt(models.Model):
 
 class UserAnswer(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)  # new field
+    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     choice = models.ForeignKey(Choice, on_delete=models.CASCADE)
     is_correct = models.BooleanField(default=False)
-    attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE)  # Add this field
+    attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE)
 
 
     def __str__(self):

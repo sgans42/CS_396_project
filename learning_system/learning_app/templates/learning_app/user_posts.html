@@ -12,7 +12,7 @@
                     <small class="text-muted">{{ post.date|date:"F d, Y" }}</small>
                     <p class="post-visits">
                         <small class="text-muted">Visits: {{ post.post_visits }}</small>
-                    </p>  <!-- Display the number of visits -->
+                    </p>
 
                 </div>
                 <h2><a class="article-title " href="{% url 'post-detail' post.id %}">{{ post.title }}</a></h2>

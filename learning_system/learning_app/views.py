@@ -7,9 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.views import View
 
-from .models import (Post, Reply, Lesson,
-                     Exercise, Question, Choice, UserAnswer, Attempt, Course, Subject, Profile
-                     )
+from .models import (Post, Reply, Lesson, Exercise, Question, Choice, UserAnswer, Attempt, Course, Subject, Profile)
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
                     QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
@@ -23,24 +21,19 @@ from django import forms
 from django.http import HttpResponseRedirect, Http404
 
 
-
-# Create your views here.
 def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()  # Save the user and get the instance back
+            user = form.save()
 
-            # Get the role from the form
             role = form.cleaned_data.get('role')
 
-            # Update or create the profile with the selected role
             profile, created = Profile.objects.update_or_create(
                 user=user,
                 defaults={'role': role},
             )
 
-            # Authenticate and log the user in
             raw_password = form.cleaned_data.get('password1')
             user = authenticate(username=user.username, password=raw_password)
             if user is not None:
@@ -79,7 +72,6 @@ class UserPostListView(ListView):
     model = Post
     template_name = 'learning_app/user_posts.html'  # <app>/<model>_<viewtype>.html
     context_object_name = 'posts'
-    paginate_by = 5
 
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs.get('username'))
@@ -108,7 +100,7 @@ class UserExerciseListView(ListView):
 
 class StudentCourseListView(LoginRequiredMixin, ListView):
     model = Course
-    template_name = 'learning_app/student_courses.html'  # Create this template
+    template_name = 'learning_app/student_courses.html'
     context_object_name = 'courses'
 
     def get_queryset(self):
@@ -117,7 +109,7 @@ class StudentCourseListView(LoginRequiredMixin, ListView):
 
 class TeacherCourseListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Course
-    template_name = 'learning_app/teacher_courses.html'  # Create this template
+    template_name = 'learning_app/teacher_courses.html'
     context_object_name = 'courses'
 
     def get_queryset(self):
@@ -135,16 +127,16 @@ class PostListView(ListView):
     context_object_name = 'posts'
 
     def get_ordering(self):
-        ordering = '-date'  # newest
+        ordering = '-date'
         current_ordering = 'newest'
 
         if 'ordering' in self.request.GET:
             selected_ordering = self.request.GET['ordering']
             if selected_ordering == 'oldest':
-                ordering = 'date'  # oldest
+                ordering = 'date'
                 current_ordering = 'oldest'
             elif selected_ordering == 'most_views':
-                ordering = '-post_visits'  # most views
+                ordering = '-post_visits'
                 current_ordering = 'most_views'
 
         self.current_ordering = current_ordering
@@ -152,7 +144,7 @@ class PostListView(ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset().order_by(self.get_ordering())
-        search_query = self.request.GET.get('search_query', '')  # Get the search query
+        search_query = self.request.GET.get('search_query', '')
 
         if search_query:
             queryset = queryset.filter(
@@ -181,7 +173,7 @@ class PostListView(ListView):
         context['page_obj'] = posts
         context['current_items_per_page'] = current_items_per_page
         context['current_ordering'] = self.current_ordering
-        context['search_form'] = PostSearchForm(self.request.GET or None)  # Add the search form
+        context['search_form'] = PostSearchForm(self.request.GET or None)
         return context
 
 
@@ -249,7 +241,7 @@ class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return False
 
 # All of the Lessons methods -------------------------------------------------------------------- Lessons methods ->
-class LessonListView(ListView): #shows all lessons
+class LessonListView(ListView):
     model = Lesson
     template_name = 'learning_app/lesson.html'
     context_object_name = 'lessons'
@@ -379,12 +371,11 @@ class TakeExerciseDetailView(LoginRequiredMixin, DetailView):
         return context
 
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()  # Make sure self.object is set
+        self.object = self.get_object()
 
         exercise = self.get_object()
         form = QuizForm(request.POST, exercise=exercise)
 
-        # Check for the maximum number of attempts
         attempt_count = Attempt.objects.filter(user=request.user, exercise=exercise).count()
         if attempt_count >= 3:
             messages.error(request, "You have already made the maximum number of attempts for this exercise.")
@@ -397,8 +388,7 @@ class TakeExerciseDetailView(LoginRequiredMixin, DetailView):
             score = 0
 
             # Create Attempt first
-            new_attempt = Attempt.objects.create(user=request.user, exercise=exercise,
-                                                 score=0)  # Temporarily set score to 0
+            new_attempt = Attempt.objects.create(user=request.user, exercise=exercise, score=0)
 
             for question in exercise.questions.all():
                 question_field = f'question_{question.id}'
@@ -411,13 +401,11 @@ class TakeExerciseDetailView(LoginRequiredMixin, DetailView):
                     question=question,
                     choice=chosen_answer,
                     is_correct=chosen_answer.is_correct,
-                    attempt=new_attempt  # Add the attempt here
+                    attempt=new_attempt
                 )
-
                 if chosen_answer.is_correct:
                     score += 1
 
-            # Update Attempt with the correct score
             new_attempt.score = score
             new_attempt.save()
 
@@ -550,13 +538,12 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         user=student
                     ).order_by('attempt_number')
 
-                    # Create a list of 3 elements, filled with either attempts or None
                     attempts_list = list(attempts[:3]) + [None] * (3 - attempts.count())
 
                     highest_score = attempts.aggregate(Max('score'))['score__max'] or 0
                     grades_data.append({
                         'student': student,
-                        'attempts': attempts_list,  # This is now always a list of 3
+                        'attempts': attempts_list,
                         'highest_score': highest_score,
                     })
                 exercise_grades.append((exercise, grades_data))
@@ -582,12 +569,10 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
     template_name = 'learning_app/grade_exercise_detail.html'
 
     def test_func(self):
-        # Ensure that only teachers or the user who took the attempt can view this page
         attempt = self.get_object()
         return self.request.user == attempt.user or self.request.user.profile.role == 'TEACHER'
 
     def get_object(self, queryset=None):
-        # Override the get_object to get the specific attempt based on the passed IDs
         user_id = self.kwargs.get('user_id')
         exercise_id = self.kwargs.get('exercise_id')
         attempt_id = self.kwargs.get('attempt_id')
@@ -604,7 +589,6 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
         context = super().get_context_data(**kwargs)
         attempt = self.get_object()
 
-        # Filter UserAnswer by specific attempt instead of general user and exercise
         user_answers = UserAnswer.objects.filter(attempt=attempt)
         questions_and_answers = []
 
@@ -622,8 +606,6 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
 
 
 # All of the Courses methods -------------------------------------------------------------------- Courses methods ->
-
-
 class CourseListView(ListView):
     model = Course
     template_name = 'learning_app/course_list.html'
@@ -668,15 +650,12 @@ class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('course-list')
 
     def form_valid(self, form):
-        # Set the default subject if none is provided
         if not form.cleaned_data.get('subject'):
             form.instance.subject = Subject.get_default_subject()
-        # Set the teacher as the current user
         form.instance.author = self.request.user
         return super().form_valid(form)
 
     def test_func(self):
-        # Ensure the user is a teacher
         return self.request.user.profile.role == 'TEACHER'
 
 

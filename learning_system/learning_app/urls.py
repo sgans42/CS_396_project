@@ -53,5 +53,4 @@ urlpatterns = [
 	path('grades/', GradeListView.as_view(), name='grade-detail'),
 	path('grades/<int:user_id>/exercise/<int:exercise_id>/attempt/<int:attempt_id>/', GradeExerciseDetailView.as_view(),
 		 name='grades-exercise-detail')
-
 ]
