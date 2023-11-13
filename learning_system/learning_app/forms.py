@@ -64,6 +64,7 @@ class ChoiceForm(forms.ModelForm):
 
 QuestionFormSet = forms.modelformset_factory(Question, form=QuestionForm, extra=10)
 ChoiceFormSet = forms.modelformset_factory(Choice, form=ChoiceForm, extra=4)
+UpdateChoiceFormSet = forms.modelformset_factory(Choice, form=ChoiceForm, extra=0)
 
 
 class QuizForm(forms.Form):
@@ -88,7 +89,13 @@ class CourseSearchForm(forms.Form):
 
 
 class CourseSelectForm(forms.Form):
-    course = forms.ModelChoiceField(queryset=Course.objects.all(), required=True, label="Select a Course")
+    course = forms.ModelChoiceField(queryset=Course.objects.none(), required=True, label="Select a Course")
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['course'].queryset = Course.objects.filter(author=user)
 
 
 class CourseForm(forms.ModelForm):

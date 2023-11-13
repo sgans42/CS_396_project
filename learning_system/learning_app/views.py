@@ -12,7 +12,8 @@ from .models import (Post, Reply, Lesson,
                      )
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
-                    QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm
+                    QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
+                    UpdateChoiceFormSet
                     )
 from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView
@@ -20,6 +21,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .forms import PostForm
 from django import forms
 from django.http import HttpResponseRedirect, Http404
+
 
 
 # Create your views here.
@@ -338,6 +340,8 @@ class TakeExerciseDetailView(LoginRequiredMixin, DetailView):
         return context
 
     def post(self, request, *args, **kwargs):
+        self.object = self.get_object()  # Make sure self.object is set
+
         exercise = self.get_object()
         form = QuizForm(request.POST, exercise=exercise)
 
@@ -438,37 +442,37 @@ class ExerciseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
         if self.request.POST:
-            data['questions'] = QuestionFormSet(self.request.POST, instance=self.object)
-            data['choices'] = [ChoiceFormSet(self.request.POST, prefix=str(x), instance=question) for x, question in enumerate(self.object.questions.all())]
+            data['questions'] = QuestionFormSet(self.request.POST,
+                                                queryset=Question.objects.filter(exercise=self.object))
+            data['choices'] = [
+                UpdateChoiceFormSet(self.request.POST, prefix=str(x), queryset=Choice.objects.filter(question=question)) for
+                x, question in enumerate(self.object.questions.all())]
         else:
-            data['questions'] = QuestionFormSet(instance=self.object)
-            data['choices'] = [ChoiceFormSet(prefix=str(x), instance=question) for x, question in enumerate(self.object.questions.all())]
+            data['questions'] = QuestionFormSet(queryset=Question.objects.filter(exercise=self.object))
+            data['choices'] = [UpdateChoiceFormSet(prefix=str(x), queryset=Choice.objects.filter(question=question)) for
+                               x, question in enumerate(self.object.questions.all())]
         return data
 
     def form_valid(self, form):
         context = self.get_context_data()
         questions = context['questions']
+        choices = context['choices']
+
         with transaction.atomic():
             self.object = form.save()
 
             if questions.is_valid():
-                question_instances = questions.save(commit=False)
-                for question in question_instances:
-                    question.exercise = self.object
-                    question.save()
-                for question in questions.deleted_objects:
-                    question.delete()
+                question_instances = questions.save()
 
-                choices = context['choices']
-                for choice_formset in choices:
+                for question_form, choice_formset in zip(question_instances, choices):
                     if choice_formset.is_valid():
                         choice_instances = choice_formset.save(commit=False)
                         for choice in choice_instances:
+                            choice.question = question_form
                             choice.save()
-                        for choice in choice_formset.deleted_objects:
-                            choice.delete()
+                        choice_formset.save_m2m()
 
-        return super().form_valid(form)
+            return super().form_valid(form)
 
 
 class ExerciseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -526,6 +530,12 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def test_func(self):
         return self.request.user.profile.role == 'TEACHER'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
 
 
 class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
