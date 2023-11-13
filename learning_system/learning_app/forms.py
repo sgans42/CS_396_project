@@ -45,6 +45,13 @@ class LessonForm(forms.ModelForm):
         model = Lesson
         fields = ['title', 'content', 'document', 'video', 'animation', 'course']
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(LessonForm, self).__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['course'].queryset = Course.objects.filter(author=user)
+
+
 class ExerciseForm(forms.ModelForm):
     course = forms.ModelChoiceField(queryset=Course.objects.all(), required=False, label="Select a Course")
 

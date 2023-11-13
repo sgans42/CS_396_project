@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db import transaction
 from django.db.models import Max, Q
 from django.shortcuts import render, redirect, get_object_or_404
@@ -133,7 +133,6 @@ class PostListView(ListView):
     model = Post
     template_name = 'learning_app/home.html'
     context_object_name = 'posts'
-    paginate_by = 10
 
     def get_ordering(self):
         ordering = '-date'  # newest
@@ -156,24 +155,26 @@ class PostListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['current_ordering'] = self.current_ordering
-        return context
 
-    def get(self, request, *args, **kwargs):
-        self.object_list = self.get_queryset()
-
-        items_per_page = request.GET.get('items_per_page', 10)
+        # Handle items per page dynamically
+        items_per_page = self.request.GET.get('items_per_page', 10)
         current_items_per_page = int(items_per_page)
 
-        paginator = Paginator(self.object_list, current_items_per_page)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+        # Pagination logic
+        paginator = Paginator(self.get_queryset(), current_items_per_page)
+        page = self.request.GET.get('page')
 
-        context = self.get_context_data()
-        context['page_obj'] = page_obj
+        try:
+            posts = paginator.page(page)
+        except PageNotAnInteger:
+            posts = paginator.page(1)
+        except EmptyPage:
+            posts = paginator.page(paginator.num_pages)
+
+        context['page_obj'] = posts
         context['current_items_per_page'] = current_items_per_page
-
-        return render(request, self.template_name, context)
+        context['current_ordering'] = self.current_ordering
+        return context
 
 
 class PostDetailView(DetailView):
@@ -256,6 +257,10 @@ class LessonCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     form_class = LessonForm
     success_url = '/lesson'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -565,8 +570,8 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
         context = super().get_context_data(**kwargs)
         attempt = self.get_object()
 
-        # Filter UserAnswer by user and exercise instead of attempt
-        user_answers = UserAnswer.objects.filter(user=attempt.user, exercise=attempt.exercise)
+        # Filter UserAnswer by specific attempt instead of general user and exercise
+        user_answers = UserAnswer.objects.filter(attempt=attempt)
         questions_and_answers = []
 
         for question in attempt.exercise.questions.all():

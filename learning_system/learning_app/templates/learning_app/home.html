@@ -36,7 +36,6 @@
         </article>
     {% endfor %}
 
-    {% if is_paginated %}
         {% with request.GET.urlencode as query_string %}
             {% if page_obj.has_previous %}
                 <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ page_obj.previous_page_number }}">Previous</a>
@@ -70,7 +69,6 @@
                 <a class="btn btn-outline-info mb-4" href="?{{ query_string|safe }}&page={{ page_obj.next_page_number }}">Next</a>
             {% endif %}
         {% endwith %}
-    {% endif %}
 
 
 {% endblock content %}

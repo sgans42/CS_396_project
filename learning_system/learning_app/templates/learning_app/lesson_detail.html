@@ -17,6 +17,29 @@
             <h2 class="article-title">{{ object.title }}</h2>
             <p class="article-content">{{ object.content }}</p>
 
+            {% if object.video %}
+                <div>
+                    <strong>Video:</strong>
+                    <a href="{{ object.video }}" target="_blank">View Video</a>
+                </div>
+            {% endif %}
+
+            {% if object.document %}
+                <div>
+                    <strong>Document:</strong>
+                    <a href="{{ object.document.url }}" download>{{ object.document.name }}</a>
+                </div>
+            {% endif %}
+
+            <!-- Display animation if it exists -->
+            {% if object.animation %}
+                <div>
+                    <strong>Animation:</strong>
+                    <a href="{{ object.animation.url }}" download>{{ object.animation.name }}</a>
+                </div>
+            {% endif %}
+
+
         </div>
     </article>
 {% endblock content %}
