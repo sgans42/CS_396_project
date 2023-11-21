@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Profile, Reply, Question, Choice, Course, Subject
+from .models import Profile, Reply, Question, Choice, Course, Subject, ExerciseCategory
 from .models import Post, Lesson, Exercise
 
 
@@ -58,21 +58,27 @@ class LessonForm(forms.ModelForm):
 
 
 class ExerciseForm(forms.ModelForm):
-    course = forms.ModelChoiceField(queryset=Course.objects.all(), required=False, label="Select a Course")
+    category = forms.ModelChoiceField(queryset=ExerciseCategory.objects.all(), required=True, label="Select a Category")
 
     class Meta:
         model = Exercise
-        fields = ['title', 'content', 'date', 'course']
+        fields = ['title', 'content', 'date', 'course', 'category']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # Corrected use of super()
+
 
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
         fields = ['question_text']
 
+
 class ChoiceForm(forms.ModelForm):
     class Meta:
         model = Choice
         fields = ['choice_text', 'is_correct']
+
 
 QuestionFormSet = forms.modelformset_factory(Question, form=QuestionForm, extra=10)
 ChoiceFormSet = forms.modelformset_factory(Choice, form=ChoiceForm, extra=4)
@@ -112,13 +118,35 @@ class CourseSelectForm(forms.Form):
 
 class CourseForm(forms.ModelForm):
     subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
+    num_categories = forms.IntegerField(label='Number of Categories', min_value=1, initial=1)
 
     class Meta:
         model = Course
-        fields = ['subject', 'code', 'title', 'description']
+        fields = ['subject', 'code', 'title', 'description', 'num_categories']
+
+
+class ExerciseCategoryForm(forms.ModelForm):
+    class Meta:
+        model = ExerciseCategory
+        fields = ['name']
 
     def __init__(self, *args, **kwargs):
-        super(CourseForm, self).__init__(*args, **kwargs)
-        self.fields['subject'].initial = Subject.get_default_subject()
+        super(ExerciseCategoryForm, self).__init__(*args, **kwargs)  # Corrected use of super()
+        # You can add custom initialization logic if needed
 
 
+class WeightAdjustmentForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        course_id = kwargs.pop('course_id', None)
+        super().__init__(*args, **kwargs)
+        if course_id:
+            categories = ExerciseCategory.objects.filter(exercises__course__id=course_id).distinct()
+            for category in categories:
+                field_name = f'weight_{category.id}'
+                self.fields[field_name] = forms.IntegerField(
+                    min_value=0,
+                    max_value=100,
+                    required=True,
+                    initial=category.weight,
+                    label=f'{category.name} Weight'
+                )

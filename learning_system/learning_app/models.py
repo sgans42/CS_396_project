@@ -181,24 +181,27 @@ class ExerciseCategory(models.Model):
         return self.name
 
 
-# class WeightedScore(models.Model):
-#     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-#     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-#     total_weighted_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-#     letter_grade = models.CharField(max_length=2, blank=True)
-#
-#     def calculate_weighted_score(self):
-#         # Implement logic to calculate the weighted score based on the student's attempts and the weights of the exercise categories.
-#         pass
-#
-#     def assign_letter_grade(self):
-#         # Implement logic to assign a letter grade based on the total_weighted_score.
-#         pass
-#
-#     def save(self, *args, **kwargs):
-#         self.calculate_weighted_score()
-#         self.assign_letter_grade()
-#         super(WeightedScore, self).save(*args, **kwargs)
-#
-#     def __str__(self):
-#         return f"{self.student.username} - {self.course.title} - Grade: {self.letter_grade}"
+class WeightedScore(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    total_weighted_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    letter_grade = models.CharField(max_length=2, blank=True)
+
+    def calculate_weighted_score(self):
+        # Implement logic to calculate the weighted score based on the student's attempts and the weights of the exercise categories.
+        pass
+
+    def assign_letter_grade(self):
+        # Implement logic to assign a letter grade based on the total_weighted_score.
+        pass
+
+    def save(self, *args, **kwargs):
+        self.calculate_weighted_score()
+        self.assign_letter_grade()
+        super(WeightedScore, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.student.username} - {self.course.title} - Grade: {self.letter_grade}"
+
+
+

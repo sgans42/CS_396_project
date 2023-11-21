@@ -6,7 +6,8 @@ from .views import (PostListView, PostDetailView, PostCreateView, PostUpdateView
 					ExerciseListView, ExerciseDetailView, ExerciseCreateView, ExerciseUpdateView, ExerciseDeleteView,
 					TakeExerciseDetailView, GradeListView, UserPostListView, UserLessonListView, UserExerciseListView,
 					CourseListView, CourseCreateView, CourseDetailView, CourseEnrollView,
-					GradeExerciseDetailView, TeacherCourseListView, StudentCourseListView, CourseGradeView
+					GradeExerciseDetailView, TeacherCourseListView, StudentCourseListView, CourseGradeView,
+					UpdateCourseView
 					)
 
 urlpatterns = [
@@ -24,6 +25,7 @@ urlpatterns = [
 # Courses
 	path('courses/', CourseListView.as_view(), name='course-list'),
 	path('course/create/', CourseCreateView.as_view(), name='course-create'),
+	path('course/update/<int:pk>/', UpdateCourseView.as_view(), name='course-update'),
 	path('course/<int:pk>/', CourseDetailView.as_view(), name='course-detail'),
 	path('course/enroll/<str:code>/', CourseEnrollView.as_view(), name='course-enroll'),
 

@@ -17,7 +17,7 @@
 
             {% if object.author == request.user %}
             <div>
-                <a class="nav-item nav-link" href="{% url 'course-grade' %}"> View Course Details </a>
+                <a class="nav-item nav-link" href="{% url 'course-grade' course.id %}"> View Course Details </a>
             </div>
             {% endif %}
         </div>

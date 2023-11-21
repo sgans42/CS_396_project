@@ -12,7 +12,7 @@ from .models import (Post, Reply, Lesson, Exercise, Question, Choice, UserAnswer
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
                     QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
-                    UpdateChoiceFormSet, PostSearchForm
+                    UpdateChoiceFormSet, PostSearchForm, ExerciseCategoryForm
                     )
 from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView
@@ -643,7 +643,6 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-
 class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Course
     form_class = CourseForm
@@ -651,13 +650,36 @@ class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('course-list')
 
     def form_valid(self, form):
-        if not form.cleaned_data.get('subject'):
-            form.instance.subject = Subject.get_default_subject()
+        response = super().form_valid(form)
         form.instance.author = self.request.user
-        return super().form_valid(form)
+        num_categories = form.cleaned_data['num_categories']
+        for i in range(num_categories):
+            category = ExerciseCategory.objects.create(name=f'Category {i+1}')
+            form.instance.categories.add(category)
+        return response
 
     def test_func(self):
         return self.request.user.profile.role == 'TEACHER'
+
+
+class UpdateCourseView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Course
+    form_class = CourseForm
+    template_name = 'learning_app/course_form.html'
+    success_url = reverse_lazy('course-list')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        form.instance.author = self.request.user
+        form.instance.exercisecategory_set.clear()
+        categories = form.cleaned_data['categories']
+        for category in categories:
+            form.instance.exercisecategory_set.add(category)
+        return response
+
+    def test_func(self):
+        course = self.get_object()
+        return self.request.user == course.author
 
 
 class CourseEnrollView(LoginRequiredMixin, View):
@@ -666,7 +688,6 @@ class CourseEnrollView(LoginRequiredMixin, View):
         course = get_object_or_404(Course, code=course_code)
         course.enrolled_students.add(request.user)
         return redirect('course-detail', pk=course.pk)
-
 
 
 class WeightAdjustmentForm(forms.Form):
@@ -690,18 +711,34 @@ class CourseGradeView(LoginRequiredMixin, UserPassesTestMixin, View):
 
     def get(self, request, *args, **kwargs):
         course = get_object_or_404(Course, pk=self.kwargs['pk'])
-        form = WeightAdjustmentForm(course_id=course.id)
-        context = {'form': form, 'course': course}
+        weight_form = WeightAdjustmentForm(course_id=course.id)
+        category_form = ExerciseCategoryForm()  # Assuming you have this form
+        context = {'weight_form': weight_form, 'category_form': category_form, 'course': course}
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
         course = get_object_or_404(Course, pk=self.kwargs['pk'])
-        form = WeightAdjustmentForm(request.POST, course_id=course.id)
-        if form.is_valid():
-            for field_name, weight in form.cleaned_data.items():
+        weight_form = WeightAdjustmentForm(request.POST, course_id=course.id)
+        category_form = ExerciseCategoryForm(request.POST)
+
+        # Check if the weight form is valid
+        if weight_form.is_valid():
+            for field_name, weight in weight_form.cleaned_data.items():
                 if field_name.startswith('weight_'):
                     category_id = int(field_name.split('_')[1])
                     ExerciseCategory.objects.filter(id=category_id).update(weight=weight)
             messages.success(request, 'Weights updated successfully.')
+
+        # Check if the category form is valid
+        if category_form.is_valid():
+            new_category = category_form.save(commit=False)
+            new_category.save()
+            messages.success(request, 'New category added successfully.')
+        else:
+            messages.error(request, 'Error adding new category.')
+
         return self.get(request, *args, **kwargs)
+
+
+
 

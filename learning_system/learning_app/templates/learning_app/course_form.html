@@ -4,10 +4,26 @@
 {% block content %}
 
 <h1>Create Course</h1>
-<form method="post">
+<form method="post" id="courseForm">
     {% csrf_token %}
     {{ form|crispy }}
+
+    <div id="category-container">
+        <!-- Dynamic category fields will be added here -->
+    </div>
+    <button type="button" onclick="addCategory()" class="btn btn-info">Add Category</button>
     <button type="submit" class="btn btn-success">Save</button>
 </form>
+
+<script>
+    function addCategory() {
+        var container = document.getElementById("category-container");
+        var input = document.createElement("input");
+        input.type = "text";
+        input.name = "categories";
+        input.className = "form-control mt-2"; // Adding Bootstrap class for styling
+        container.appendChild(input);
+    }
+</script>
 
 {% endblock content %}
