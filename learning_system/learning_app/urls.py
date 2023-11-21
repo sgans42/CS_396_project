@@ -6,7 +6,7 @@ from .views import (PostListView, PostDetailView, PostCreateView, PostUpdateView
 					ExerciseListView, ExerciseDetailView, ExerciseCreateView, ExerciseUpdateView, ExerciseDeleteView,
 					TakeExerciseDetailView, GradeListView, UserPostListView, UserLessonListView, UserExerciseListView,
 					CourseListView, CourseCreateView, CourseDetailView, CourseEnrollView,
-					GradeExerciseDetailView, TeacherCourseListView, StudentCourseListView
+					GradeExerciseDetailView, TeacherCourseListView, StudentCourseListView, CourseGradeView
 					)
 
 urlpatterns = [
@@ -27,7 +27,11 @@ urlpatterns = [
 	path('course/<int:pk>/', CourseDetailView.as_view(), name='course-detail'),
 	path('course/enroll/<str:code>/', CourseEnrollView.as_view(), name='course-enroll'),
 
-# Profile methods
+	path('course/grade/<int:pk>/', CourseGradeView.as_view(), name='course-grade'),
+
+
+
+	# Profile methods
 	path('profile/', views.profile, name='learning_app-profile'),  # edit profile
 	path('profile/post/<str:username>/', UserPostListView.as_view(), name='user-posts'),  # individual users posts
 	path('profile/lesson/<str:username>/', UserLessonListView.as_view(), name='user-lessons'),  # individual users lessons

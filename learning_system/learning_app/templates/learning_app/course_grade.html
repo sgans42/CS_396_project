@@ -1,0 +1,46 @@
+{% extends "learning_app/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h1>Course Grades for {{ course.title }}</h1>
+
+    <!-- Weight Adjustment Form -->
+    <div class="mb-3">
+        <form method="post" class="form-inline my-2 my-lg-0">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button class="btn btn-primary my-2 my-sm-0" type="submit">Update Weights</button>
+        </form>
+    </div>
+
+    <!-- Displaying Grades -->
+    <section>
+        <h2>Student Grades</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Exercise</th>
+                    <th>Score</th>
+                    <th>Weighted Score</th>
+                    <th>Letter Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grade in grades %}
+                    <tr>
+                        <td>{{ grade.student.username }}</td>
+                        <td>{{ grade.exercise.title }}</td>
+                        <td>{{ grade.score }}</td>
+                        <td>{{ grade.weighted_score }}</td>
+                        <td>{{ grade.letter_grade }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5">No grades available</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock content %}

@@ -143,7 +143,7 @@ class Attempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
-    score = models.IntegerField()
+    score = models.DecimalField(max_digits=5, decimal_places=2)
     attempt_number = models.IntegerField(default=0)
 
 
@@ -171,3 +171,34 @@ class UserAnswer(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.exercise.title} - {self.question.question_text} - {self.choice.choice_text}"
 
+
+class ExerciseCategory(models.Model):
+    name = models.CharField(max_length=100)
+    exercises = models.ManyToManyField(Exercise, related_name='categories')
+    weight = models.DecimalField(max_digits=4, decimal_places=2)  # This represents the weight of each category
+
+    def __str__(self):
+        return self.name
+
+
+# class WeightedScore(models.Model):
+#     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+#     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+#     total_weighted_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+#     letter_grade = models.CharField(max_length=2, blank=True)
+#
+#     def calculate_weighted_score(self):
+#         # Implement logic to calculate the weighted score based on the student's attempts and the weights of the exercise categories.
+#         pass
+#
+#     def assign_letter_grade(self):
+#         # Implement logic to assign a letter grade based on the total_weighted_score.
+#         pass
+#
+#     def save(self, *args, **kwargs):
+#         self.calculate_weighted_score()
+#         self.assign_letter_grade()
+#         super(WeightedScore, self).save(*args, **kwargs)
+#
+#     def __str__(self):
+#         return f"{self.student.username} - {self.course.title} - Grade: {self.letter_grade}"

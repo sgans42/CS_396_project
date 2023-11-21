@@ -7,7 +7,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.views import View
 
-from .models import (Post, Reply, Lesson, Exercise, Question, Choice, UserAnswer, Attempt, Course, Subject, Profile)
+from .models import (Post, Reply, Lesson, Exercise, Question, Choice, UserAnswer, Attempt, Course, Subject, Profile,
+                     ExerciseCategory)
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
                     QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
@@ -667,4 +668,40 @@ class CourseEnrollView(LoginRequiredMixin, View):
         return redirect('course-detail', pk=course.pk)
 
 
+
+class WeightAdjustmentForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        course_id = kwargs.pop('course_id', None)
+        super().__init__(*args, **kwargs)
+        if course_id:
+            categories = ExerciseCategory.objects.filter(exercises__course__id=course_id).distinct()
+            for category in categories:
+                field_name = f'weight_{category.id}'
+                self.fields[field_name] = forms.DecimalField(max_digits=4, decimal_places=2, required=False, label=category.name)
+
+
+class CourseGradeView(LoginRequiredMixin, UserPassesTestMixin, View):
+    template_name = 'learning_app/course_grade.html'
+
+    def test_func(self):
+        # Check if user is a teacher of the course
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        return self.request.user.profile.role == 'TEACHER' and self.request.user == course.author
+
+    def get(self, request, *args, **kwargs):
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        form = WeightAdjustmentForm(course_id=course.id)
+        context = {'form': form, 'course': course}
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        form = WeightAdjustmentForm(request.POST, course_id=course.id)
+        if form.is_valid():
+            for field_name, weight in form.cleaned_data.items():
+                if field_name.startswith('weight_'):
+                    category_id = int(field_name.split('_')[1])
+                    ExerciseCategory.objects.filter(id=category_id).update(weight=weight)
+            messages.success(request, 'Weights updated successfully.')
+        return self.get(request, *args, **kwargs)
 
