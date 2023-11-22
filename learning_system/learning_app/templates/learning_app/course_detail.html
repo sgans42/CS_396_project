@@ -15,9 +15,12 @@
                     </form>
                 {% endif %}
 
+
             {% if object.author == request.user %}
             <div>
-                <a class="nav-item nav-link" href="{% url 'course-grade' course.id %}"> View Course Details </a>
+                <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'course-update' course.id %}">Update</a>
+                <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'course-delete' course.id %}">Delete</a>
+                <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'course-grade' course.id %}"> View Course Details </a>
             </div>
             {% endif %}
         </div>
@@ -31,6 +34,39 @@
 
 
 </article>
+
+<div class="media content-section">
+    <div class="media-body">
+        <div class="article-metadata">
+            <h3 style="border-top: none;">Course Categories and Weights</h3>
+        </div>
+
+        <div class="container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        {% for category in object.categories.all %}
+                            <th>{{ category.name }}</th>
+                        {% empty %}
+                            <th>No categories defined for this course.</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        {% for category in object.categories.all %}
+                            <td>{{ category.weight }}%</td>
+                        {% empty %}
+                            <td></td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
     <h2>Lessons</h2>
     <ul>
     {% for lesson in lessons %}

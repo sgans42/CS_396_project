@@ -21,11 +21,20 @@ class Subject(models.Model):
         return general
 
 
+class ExerciseCategory(models.Model):
+    name = models.CharField(max_length=100, default="General")
+    weight = models.DecimalField(max_digits=4, decimal_places=2, default=0.0)
+
+    def __str__(self):
+        return self.name
+
+
 class Course(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='courses')
     code = models.CharField(max_length=20, unique=True)
     title = models.CharField(max_length=100)
     description = models.TextField()
+    categories = models.ManyToManyField('ExerciseCategory', related_name='courses', blank=True)
     enrolled_students = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='enrolled_courses', blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -35,6 +44,32 @@ class Course(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.code})"
+
+    def delete(self, *args, **kwargs):
+        Lesson.objects.filter(course=self).update(course=Course.objects.get(code='GEN-101'))
+
+        Exercise.objects.filter(course=self).update(course=Course.objects.get(code='GEN-101'))
+
+        Choice.objects.filter(question__exercise__course=self).update(question__exercise__course=Course.objects.get(code='GEN-101'))
+
+        UserAnswer.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
+
+        Question.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
+
+        # Transfer attempts (related to the exercises) to 'GEN-101'
+        Attempt.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
+
+        super().delete(*args, **kwargs)
+
+class Exercise(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField(blank=True)
+    date = models.DateTimeField(default=timezone.now)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='exercises')
+
+    def __str__(self):
+        return self.title
 
 
 
@@ -103,15 +138,6 @@ class Lesson(models.Model):
         return self.title
 
 
-class Exercise(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField(blank=True)
-    date = models.DateTimeField(default=timezone.now)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='exercises', default=4)
-
-    def __str__(self):
-        return self.title
 
 
 class Question(models.Model):
@@ -172,13 +198,6 @@ class UserAnswer(models.Model):
         return f"{self.user.username} - {self.exercise.title} - {self.question.question_text} - {self.choice.choice_text}"
 
 
-class ExerciseCategory(models.Model):
-    name = models.CharField(max_length=100)
-    exercises = models.ManyToManyField(Exercise, related_name='categories')
-    weight = models.DecimalField(max_digits=4, decimal_places=2)  # This represents the weight of each category
-
-    def __str__(self):
-        return self.name
 
 
 class WeightedScore(models.Model):

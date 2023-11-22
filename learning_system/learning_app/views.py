@@ -20,6 +20,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .forms import PostForm
 from django import forms
 from django.http import HttpResponseRedirect, Http404
+from django.db import models
 
 
 def register(request):
@@ -421,39 +422,55 @@ class ExerciseCreateView(LoginRequiredMixin, CreateView):
     model = Exercise
     form_class = ExerciseForm
     template_name = 'learning_app/exercise_form.html'
-    success_url = '/exercise/'
+    success_url = reverse_lazy('exercise')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
+        data['user_courses'] = Course.objects.filter(author=self.request.user).prefetch_related('categories')
+
         if self.request.POST:
             data['questions'] = QuestionFormSet(self.request.POST)
             data['choices'] = [ChoiceFormSet(self.request.POST, prefix=str(x), queryset=Choice.objects.none()) for x in range(0, 10)]
         else:
             data['questions'] = QuestionFormSet(queryset=Question.objects.none())
             data['choices'] = [ChoiceFormSet(prefix=str(x), queryset=Choice.objects.none()) for x in range(0, 10)]
+
+        data['questions_choices'] = zip(data['questions'], data['choices'])
         return data
 
     def form_valid(self, form):
+        exercise = form.save(commit=False)
+        exercise.author = self.request.user
+
+        course_category = self.request.POST.get('course_category')
+        if course_category:
+            course_id, category_id = map(int, course_category.split('_'))
+            course = Course.objects.get(id=course_id)
+            category = ExerciseCategory.objects.get(id=category_id)
+            exercise.course = course
+            exercise.save()
+            exercise.categories.add(category)
+
         context = self.get_context_data()
         questions = context['questions']
-        with transaction.atomic():
-            form.instance.author = self.request.user
-            self.object = form.save()
-
-            if questions.is_valid():
+        if questions.is_valid():
+            with transaction.atomic():
+                self.object = exercise
                 question_instances = questions.save(commit=False)
                 for question in question_instances:
                     question.exercise = self.object
                     question.save()
-
-                choices = context['choices']
-                if all(choice_formset.is_valid() for choice_formset in choices):
-                    for question, choice_formset in zip(question_instances, choices):
+                for choice_formset in context['choices']:
+                    if choice_formset.is_valid():
                         choice_instances = choice_formset.save(commit=False)
                         for choice in choice_instances:
                             choice.question = question
                             choice.save()
-
         return super().form_valid(form)
 
 
@@ -461,24 +478,29 @@ class ExerciseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Exercise
     form_class = ExerciseForm
     template_name = 'learning_app/exercise_form.html'
-    success_url = '/exercise/'
+    success_url = reverse_lazy('exercise_list')
 
-    def test_func(self):
-        exercise = self.get_object()
-        return self.request.user == exercise.author
+    def get_form_kwargs(self):
+        kwargs = super(ExerciseUpdateView, self).get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
+        data['user_courses'] = Course.objects.filter(author=self.request.user).prefetch_related('categories')
+
         if self.request.POST:
-            data['questions'] = QuestionFormSet(self.request.POST,
-                                                queryset=Question.objects.filter(exercise=self.object))
+            data['questions'] = QuestionFormSet(self.request.POST, queryset=Question.objects.filter(exercise=self.object))
             data['choices'] = [
-                UpdateChoiceFormSet(self.request.POST, prefix=str(x), queryset=Choice.objects.filter(question=question)) for
-                x, question in enumerate(self.object.questions.all())]
+                UpdateChoiceFormSet(self.request.POST, prefix=str(x), queryset=Choice.objects.filter(question=question))
+                for x, question in enumerate(self.object.questions.all())]
         else:
             data['questions'] = QuestionFormSet(queryset=Question.objects.filter(exercise=self.object))
-            data['choices'] = [UpdateChoiceFormSet(prefix=str(x), queryset=Choice.objects.filter(question=question)) for
-                               x, question in enumerate(self.object.questions.all())]
+            data['choices'] = [
+                UpdateChoiceFormSet(prefix=str(x), queryset=Choice.objects.filter(question=question))
+                for x, question in enumerate(self.object.questions.all())]
+
+        data['questions_choices'] = zip(data['questions'], data['choices'])
         return data
 
     def form_valid(self, form):
@@ -487,20 +509,43 @@ class ExerciseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         choices = context['choices']
 
         with transaction.atomic():
-            self.object = form.save()
+            self.object = form.save(commit=False)
+            self.object.author = self.request.user
+
+            course_id = form.cleaned_data.get('course')
+            category_id = form.cleaned_data.get('category')
+
+            print(f"Course ID from form: {course_id}, Category ID from form: {category_id}")
+
+            if course_id:
+                self.object.course = Course.objects.get(id=course_id)
+                print(f"Assigned Course: {self.object.course}")
+
+            if category_id:
+                category = ExerciseCategory.objects.get(id=category_id)
+                self.object.category = category
+                print(f"Assigned Category: {self.object.category}")
+
+            self.object.save()
 
             if questions.is_valid():
-                question_instances = questions.save()
+                questions.save()
+                for question_formset in choices:
+                    if question_formset.is_valid():
+                        question_formset.save()
 
-                for question_form, choice_formset in zip(question_instances, choices):
-                    if choice_formset.is_valid():
-                        choice_instances = choice_formset.save(commit=False)
-                        for choice in choice_instances:
-                            choice.question = question_form
-                            choice.save()
-                        choice_formset.save_m2m()
+            # Save the form and related question and choice formsets
+            form.save_m2m()
+            for question_formset in choices:
+                if question_formset.is_valid():
+                    question_formset.save()
 
-            return super().form_valid(form)
+        return super(ExerciseUpdateView, self).form_valid(form)
+
+    def test_func(self):
+        exercise = self.get_object()
+        return self.request.user == exercise.author
+
 
 
 class ExerciseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -508,10 +553,19 @@ class ExerciseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     success_url = '/exercise'
 
     def test_func(self):
-        lesson = self.get_object()
-        if self.request.user == lesson.author:
-            return True
-        return False
+        exercise = self.get_object()
+        return self.request.user == exercise.author
+
+    def delete(self, *args, **kwargs):
+        # Get the exercise object
+        exercise = self.get_object()
+
+        # Delete related user answers and attempts
+        UserAnswer.objects.filter(exercise=exercise).delete()
+        Attempt.objects.filter(exercise=exercise).delete()
+
+        # Call the superclass method to delete the Exercise
+        return super(ExerciseDeleteView, self).delete(*args, **kwargs)
 
 
 class ExerciseSelectForm(forms.Form):
@@ -638,8 +692,8 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['lessons'] = self.object.lessons.all()
-        context['exercises'] = self.object.exercises.all()
+        course = self.get_object()
+        context['categories_with_weights'] = course.categories.all()
         return context
 
 
@@ -650,13 +704,26 @@ class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('course-list')
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        form.instance.author = self.request.user
+        course = form.save(commit=False)
+        course.author = self.request.user
+        course.save()
+
         num_categories = form.cleaned_data['num_categories']
-        for i in range(num_categories):
-            category = ExerciseCategory.objects.create(name=f'Category {i+1}')
-            form.instance.categories.add(category)
-        return response
+        for i in range(1, num_categories + 1):
+            category_name = form.cleaned_data.get(f'category_name_{i}', 'Unnamed Category')
+            category_weight = form.cleaned_data.get(f'category_weight_{i}', 0.0)
+
+            category, created = ExerciseCategory.objects.get_or_create(
+                name=category_name,
+                defaults={'weight': category_weight}
+            )
+            if not created:
+                category.weight = category_weight
+                category.save()
+
+            course.categories.add(category)
+
+        return super().form_valid(form)
 
     def test_func(self):
         return self.request.user.profile.role == 'TEACHER'
@@ -669,17 +736,79 @@ class UpdateCourseView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy('course-list')
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        form.instance.author = self.request.user
-        form.instance.exercisecategory_set.clear()
-        categories = form.cleaned_data['categories']
-        for category in categories:
-            form.instance.exercisecategory_set.add(category)
-        return response
+        total_weight = 0
+        course = form.save()  # Save the course instance
+
+        num_categories = form.cleaned_data.get('num_categories') or 0
+        existing_categories = list(course.categories.all())
+
+        # Process existing categories
+        for i, category in enumerate(existing_categories, start=1):
+            category_name_field = f'category_name_{i}'
+            category_weight_field = f'category_weight_{i}'
+            category_delete_field = f'category_delete_{i}'
+
+            category_delete = form.cleaned_data.get(category_delete_field, False)
+            category_name = form.cleaned_data.get(category_name_field, category.name)
+            category_weight = form.cleaned_data.get(category_weight_field, category.weight)
+
+            if not category_delete:
+                total_weight += float(category_weight)
+                category.name = category_name
+                category.weight = category_weight
+                category.save()
+            else:
+                course.categories.remove(category)  # Remove the category from the course
+                category.delete()  # Delete the category
+
+        # Process new categories
+        for i in range(len(existing_categories) + 1, num_categories + 1):
+            category_name = form.cleaned_data.get(f'category_name_{i}', 'Unnamed Category')
+            category_weight = form.cleaned_data.get(f'category_weight_{i}', 0.0)
+            total_weight += float(category_weight)
+
+            # Create new category
+            new_category, created = ExerciseCategory.objects.get_or_create(
+                name=category_name,
+                defaults={'weight': category_weight}
+            )
+            if not created:
+                new_category.weight = category_weight
+                new_category.save()
+
+            course.categories.add(new_category)  # Add the new category to the course
+
+        # Validate total weight
+        if total_weight != 100:
+            messages.error(self.request, "The total weight of all categories must add up to 100%.")
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
 
     def test_func(self):
         course = self.get_object()
         return self.request.user == course.author
+
+
+class CourseDeleteView(DeleteView):
+    model = Course
+    success_url = reverse_lazy('course-list')  # Redirect to course list after deletion
+    template_name = 'learning_app/course_confirm_delete.html'
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        # Transfer lessons, exercises, choices, user answers, and questions to 'GEN-101'
+        Lesson.objects.filter(course=self.object).update(course=Course.objects.get(code='GEN-101'))
+        Exercise.objects.filter(course=self.object).update(course=Course.objects.get(code='GEN-101'))
+        Choice.objects.filter(question__exercise__course=self.object).update(
+            question__exercise__course=Course.objects.get(code='GEN-101'))
+        UserAnswer.objects.filter(exercise__course=self.object).update(
+            exercise__course=Course.objects.get(code='GEN-101'))
+        Question.objects.filter(exercise__course=self.object).update(
+            exercise__course=Course.objects.get(code='GEN-101'))
+
+        # Call the parent class's delete method to delete the course
+        return super().delete(request, *args, **kwargs)
 
 
 class CourseEnrollView(LoginRequiredMixin, View):
@@ -738,7 +867,6 @@ class CourseGradeView(LoginRequiredMixin, UserPassesTestMixin, View):
             messages.error(request, 'Error adding new category.')
 
         return self.get(request, *args, **kwargs)
-
 
 
 

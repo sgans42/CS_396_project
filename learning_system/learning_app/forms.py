@@ -58,14 +58,32 @@ class LessonForm(forms.ModelForm):
 
 
 class ExerciseForm(forms.ModelForm):
-    category = forms.ModelChoiceField(queryset=ExerciseCategory.objects.all(), required=True, label="Select a Category")
+    course = forms.ModelChoiceField(queryset=Course.objects.none(), required=False, label="Select a Course")
+    category = forms.ModelChoiceField(queryset=ExerciseCategory.objects.none(), required=False, label="Select a Category")
 
     class Meta:
         model = Exercise
-        fields = ['title', 'content', 'date', 'course', 'category']
+        fields = ['title', 'content', 'course', 'category']
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # Corrected use of super()
+        user = kwargs.pop('user', None)
+        super(ExerciseForm, self).__init__(*args, **kwargs)
+
+        if user:
+            self.fields['course'].queryset = Course.objects.filter(author=user)
+
+        if 'course' in self.data:
+            try:
+                course_id = int(self.data.get('course'))
+                self.fields['category'].queryset = ExerciseCategory.objects.filter(courses__id=course_id)
+                print(f"Initializing form with POST data, course_id: {course_id}")
+            except (ValueError, TypeError):
+                self.fields['category'].queryset = ExerciseCategory.objects.none()
+        elif self.instance.pk and self.instance.course:
+            self.fields['category'].queryset = self.instance.course.categories.all()
+            print(f"Initializing form with instance data, course: {self.instance.course}")
+        else:
+            self.fields['category'].queryset = ExerciseCategory.objects.none()
 
 
 class QuestionForm(forms.ModelForm):
@@ -117,12 +135,34 @@ class CourseSelectForm(forms.Form):
 
 
 class CourseForm(forms.ModelForm):
-    subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
-    num_categories = forms.IntegerField(label='Number of Categories', min_value=1, initial=1)
+    num_categories = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
 
     class Meta:
         model = Course
         fields = ['subject', 'code', 'title', 'description', 'num_categories']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields['num_categories'].initial = self.instance.categories.count()
+            for idx, category in enumerate(self.instance.categories.all(), start=1):
+                self.fields[f'category_name_{idx}'] = forms.CharField(
+                    initial=category.name,
+                    required=False
+                )
+                self.fields[f'category_weight_{idx}'] = forms.DecimalField(
+                    initial=category.weight,
+                    max_digits=4,
+                    decimal_places=2,
+                    required=False
+                )
+                self.fields[f'category_delete_{idx}'] = forms.BooleanField(
+                    required=False,
+                    label='Delete this category'
+                )
 
 
 class ExerciseCategoryForm(forms.ModelForm):

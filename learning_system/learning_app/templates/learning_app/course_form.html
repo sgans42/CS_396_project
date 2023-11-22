@@ -2,28 +2,36 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-
-<h1>Create Course</h1>
-<form method="post" id="courseForm">
+<h1>Update Course</h1>
+<form method="post">
     {% csrf_token %}
-    {{ form|crispy }}
+    {{ form.subject|as_crispy_field }}
+    {{ form.code|as_crispy_field }}
+    {{ form.title|as_crispy_field }}
+    {{ form.description|as_crispy_field }}
 
-    <div id="category-container">
-        <!-- Dynamic category fields will be added here -->
+    <h3>Number of Categories</h3>
+    <div class="form-group">
+        <label for="num_categories">Number of Categories</label>
+        <input type="number" class="form-control" id="num_categories" name="num_categories" min="1" value="{{ form.num_categories.value }}">
     </div>
-    <button type="button" onclick="addCategory()" class="btn btn-info">Add Category</button>
-    <button type="submit" class="btn btn-success">Save</button>
+
+    <h3>Categories and Weights</h3>
+{% for category in course.categories.all %}
+    <div class="form-group">
+        <label for="category_name_{{ forloop.counter }}">Category Name</label>
+        <input type="text" class="form-control" id="category_name_{{ forloop.counter }}" name="category_name_{{ forloop.counter }}" value="{{ category.name }}">
+    </div>
+    <div class="form-group">
+        <label for="category_weight_{{ forloop.counter }}">Category Weight</label>
+        <input type="number" class="form-control" id="category_weight_{{ forloop.counter }}" name="category_weight_{{ forloop.counter }}" value="{{ category.weight }}">
+    </div>
+    <div class="form-group form-check">
+        <input type="checkbox" class="form-check-input" id="category_delete_{{ forloop.counter }}" name="category_delete_{{ forloop.counter }}">
+        <label class="form-check-label" for="category_delete_{{ forloop.counter }}">Delete this category</label>
+    </div>
+{% endfor %}
+
+    <button type="submit" class="btn btn-primary">Update Course</button>
 </form>
-
-<script>
-    function addCategory() {
-        var container = document.getElementById("category-container");
-        var input = document.createElement("input");
-        input.type = "text";
-        input.name = "categories";
-        input.className = "form-control mt-2"; // Adding Bootstrap class for styling
-        container.appendChild(input);
-    }
-</script>
-
 {% endblock content %}
