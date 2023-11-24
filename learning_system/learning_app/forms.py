@@ -72,16 +72,15 @@ class ExerciseForm(forms.ModelForm):
         if user:
             self.fields['course'].queryset = Course.objects.filter(author=user)
 
+        # Update to check if the exercise instance has a course
         if 'course' in self.data:
             try:
                 course_id = int(self.data.get('course'))
                 self.fields['category'].queryset = ExerciseCategory.objects.filter(courses__id=course_id)
-                print(f"Initializing form with POST data, course_id: {course_id}")
             except (ValueError, TypeError):
                 self.fields['category'].queryset = ExerciseCategory.objects.none()
-        elif self.instance.pk and self.instance.course:
+        elif self.instance.pk and hasattr(self.instance, 'course') and self.instance.course:
             self.fields['category'].queryset = self.instance.course.categories.all()
-            print(f"Initializing form with instance data, course: {self.instance.course}")
         else:
             self.fields['category'].queryset = ExerciseCategory.objects.none()
 

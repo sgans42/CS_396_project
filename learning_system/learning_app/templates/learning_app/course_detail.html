@@ -16,7 +16,7 @@
                 {% endif %}
 
 
-            {% if object.author == request.user %}
+{% if object.author == request.user or request.user.is_superuser %}
             <div>
                 <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'course-update' course.id %}">Update</a>
                 <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'course-delete' course.id %}">Delete</a>
@@ -26,15 +26,10 @@
         </div>
         <h2 class="article-title">{{ object.title }}</h2>
         <p class="article-content">{{ object.description }}</p>
-
     </div>
-
-
-
-
-
 </article>
 
+<!--------------------------------------categories and their weights-------------------------------------------------->
 <div class="media content-section">
     <div class="media-body">
         <div class="article-metadata">
@@ -67,21 +62,67 @@
 </div>
 
 
-    <h2>Lessons</h2>
-    <ul>
-    {% for lesson in lessons %}
-        <li>{{ lesson.title }} - <a href="{% url 'lesson-detail' lesson.id %}">View</a></li>
-        {% empty %}
-        <li>No lessons available.</li>
+<!---------------------------------------------Display the grades----------------------------------------------------->
+<div class="content-section">
+    <h2>Course Grades</h2>
+    {% for category_data in categories_with_exercises %}
+        <div class="category-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>{{ category_data.category.name }}</th>
+                        <th>Highest Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exercise_info in category_data.exercises_info %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'exercise-detail' exercise_info.exercise.id %}">
+                                    {{ exercise_info.exercise.title }}
+                                </a>
+                            </td>
+                            <td>{{ exercise_info.highest_score }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="2">No {{ category_data.category.name }} available in this category.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% endfor %}
-    </ul>
+</div>
 
-    <h2>Exercises</h2>
-    <ul>
-    {% for exercise in exercises %}
-        <li>{{ exercise.title }} - <a href="{% url 'exercise-detail' exercise.id %}">View</a></li>
+
+
+<div class="content-section">
+    <h2>Lessons</h2>
+    {% if lessons %}
+            {% for lesson in lessons %}
+                <a href="{% url 'lesson-detail' lesson.id %}">{{ lesson.title }}</a>
+                <br>
+            {% endfor %}
+    {% else %}
+        <p>No lessons available.</p>
+    {% endif %}
+</div>
+
+<h2>Exercises</h2>
+<ul>
+    {% for category_data in categories_with_exercises %}
+        <li>{{ category_data.category.name }}
+            <ul>
+                {% for exercise_info in category_data.exercises_info %}
+                    <li>{{ exercise_info.exercise.title }} - <a href="{% url 'exercise-detail' exercise_info.exercise.id %}">View</a></li>
+                {% empty %}
+                    <li>No exercises in this category.</li>
+                {% endfor %}
+            </ul>
+        </li>
     {% empty %}
-        <li>No exercises available.</li>
+        <li>No categories or exercises available.</li>
     {% endfor %}
-    </ul>
+</ul>
 {% endblock content %}

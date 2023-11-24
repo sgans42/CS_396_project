@@ -8,15 +8,15 @@
         <div class="article-metadata">
             <a class="mr-2" href="{% url 'user-exercise' exercise.author.username %}">{{ exercise.author }}</a>
             <small class="text-muted">{{ exercise.date|date:"F d, Y" }}</small>
-            {% if exercise.author == user %}
-            <div>
-                <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'exercise-update' exercise.id %}">Update</a>
-                <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'exercise-delete' exercise.id %}">Delete</a>
-            </div>
+            {% if object.author == request.user or request.user.is_superuser %}
+                <div>
+                    <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'exercise-update' exercise.id %}">Update</a>
+                    <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'exercise-delete' exercise.id %}">Delete</a>
+                </div>
             {% endif %}
         </div>
         <div class="content-section">
-            <h2 class="article-title">{{ exercise.title }}</h2>
+            <h2 class="article-title">{{ exercise.title }} - <small>Course: {{ exercise.course.title }} | Category: {{ exercise.categories.first.name }}</small></h2>
             {% if previous_attempts|length < 3 %}
                 <a href="{% url 'exercise-take' exercise.id %}" class="btn btn-primary">Take Quiz</a>
             {% else %}

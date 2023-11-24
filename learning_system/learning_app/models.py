@@ -45,21 +45,6 @@ class Course(models.Model):
     def __str__(self):
         return f"{self.title} ({self.code})"
 
-    def delete(self, *args, **kwargs):
-        Lesson.objects.filter(course=self).update(course=Course.objects.get(code='GEN-101'))
-
-        Exercise.objects.filter(course=self).update(course=Course.objects.get(code='GEN-101'))
-
-        Choice.objects.filter(question__exercise__course=self).update(question__exercise__course=Course.objects.get(code='GEN-101'))
-
-        UserAnswer.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
-
-        Question.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
-
-        # Transfer attempts (related to the exercises) to 'GEN-101'
-        Attempt.objects.filter(exercise__course=self).update(exercise__course=Course.objects.get(code='GEN-101'))
-
-        super().delete(*args, **kwargs)
 
 class Exercise(models.Model):
     title = models.CharField(max_length=200)
@@ -67,6 +52,7 @@ class Exercise(models.Model):
     date = models.DateTimeField(default=timezone.now)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='exercises')
+    categories = models.ManyToManyField(ExerciseCategory, related_name='exercises', blank=True)
 
     def __str__(self):
         return self.title

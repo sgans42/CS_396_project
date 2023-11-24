@@ -21,6 +21,8 @@ from .forms import PostForm
 from django import forms
 from django.http import HttpResponseRedirect, Http404
 from django.db import models
+from django.utils import timezone
+
 
 
 def register(request):
@@ -118,7 +120,7 @@ class TeacherCourseListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return Course.objects.filter(author=self.request.user)
 
     def test_func(self):
-        return self.request.user.profile.role == 'TEACHER'
+        return self.request.user.is_superuser or self.request.user.profile.role == 'TEACHER'
 
 
 
@@ -227,9 +229,7 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         post = self.get_object()
-        if self.request.user == post.author:
-            return True
-        return False
+        return self.request.user.is_superuser or self.request.user == post.author
 
 
 class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -238,9 +238,7 @@ class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         post = self.get_object()
-        if self.request.user == post.author:
-            return True
-        return False
+        return self.request.user.is_superuser or self.request.user == post.author
 
 # All of the Lessons methods -------------------------------------------------------------------- Lessons methods ->
 class LessonListView(ListView):
@@ -282,7 +280,7 @@ class LessonCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return super().form_valid(form)
 
     def test_func(self):
-        return self.request.user.profile.role == 'TEACHER'
+        return self.request.user.is_superuser or self.request.user.profile.role == 'TEACHER'
 
     def handle_no_permission(self):
         return redirect('../../lesson')
@@ -300,9 +298,7 @@ class LessonUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         lesson = self.get_object()
-        if self.request.user == lesson.author:
-            return True
-        return False
+        return self.request.user.is_superuser or self.request.user == lesson.author
 
 
 class LessonDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -311,9 +307,7 @@ class LessonDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         lesson = self.get_object()
-        if self.request.user == lesson.author:
-            return True
-        return False
+        return self.request.user.is_superuser or self.request.user == lesson.author
 
 # All of the Exercise methods -------------------------------------------------------------------- Exercise methods ->
 
@@ -334,6 +328,47 @@ class ExerciseListView(ListView):
             )
 
         return queryset
+
+    def post(self, request, *args, **kwargs):
+        # Create a default exercise
+        general_course = Course.objects.get_or_create(code='GEN-101', defaults={'title': 'Deleted Courses'})[0]
+        deleted_exercises_category = ExerciseCategory.objects.get_or_create(name='Deleted Exercises')[0]
+
+        exercise = Exercise.objects.create(
+            title='Title',
+            content='Test exercise',
+            date=timezone.now(),
+            author=request.user,
+            course=Course.objects.get(code='GEN-101')
+        )
+
+        # Fetch the "Deleted Exercises" category
+        deleted_exercises_category = ExerciseCategory.objects.get(name='Deleted Exercises')
+        exercise.categories.add(deleted_exercises_category)
+
+        # Creating 10 questions with 4 choices each
+        for q_num in range(10):
+            question = Question.objects.create(
+                question_text=f'Question {q_num + 1}',
+                exercise=exercise
+            )
+
+            for c_num in range(4):
+                is_correct = True if c_num == 0 else False
+                Choice.objects.create(
+                    choice_text=f'Choice {c_num + 1}',
+                    question=question,
+                    is_correct=is_correct
+                )
+
+        # Redirect to the exercise detail page or another appropriate page
+        return redirect('exercise-detail', pk=exercise.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # your existing context modifications
+        return context
+
 
 
 
@@ -418,7 +453,7 @@ class TakeExerciseDetailView(LoginRequiredMixin, DetailView):
             return self.get(request, *args, **kwargs)
 
 
-class ExerciseCreateView(LoginRequiredMixin, CreateView):
+class ExerciseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Exercise
     form_class = ExerciseForm
     template_name = 'learning_app/exercise_form.html'
@@ -457,28 +492,37 @@ class ExerciseCreateView(LoginRequiredMixin, CreateView):
             exercise.categories.add(category)
 
         context = self.get_context_data()
-        questions = context['questions']
-        if questions.is_valid():
+        questions_formset = context['questions']
+        choices_formsets = context['choices']
+
+        if questions_formset.is_valid():
             with transaction.atomic():
                 self.object = exercise
-                question_instances = questions.save(commit=False)
-                for question in question_instances:
-                    question.exercise = self.object
-                    question.save()
-                for choice_formset in context['choices']:
-                    if choice_formset.is_valid():
-                        choice_instances = choice_formset.save(commit=False)
-                        for choice in choice_instances:
-                            choice.question = question
-                            choice.save()
-        return super().form_valid(form)
+                exercise.save()
+
+                for question_form, choice_formset in zip(questions_formset, choices_formsets):
+                    if question_form.is_valid() and choice_formset.is_valid():
+                        question_instance = question_form.save(commit=False)
+                        question_instance.exercise = exercise
+                        question_instance.save()
+
+                        for choice_form in choice_formset:
+                            choice_instance = choice_form.save(commit=False)
+                            choice_instance.question = question_instance
+                            choice_instance.save()
+
+        return super(ExerciseCreateView, self).form_valid(form)
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.profile.role == 'TEACHER'
+
 
 
 class ExerciseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Exercise
     form_class = ExerciseForm
     template_name = 'learning_app/exercise_form.html'
-    success_url = reverse_lazy('exercise_list')
+    success_url = reverse_lazy('exercise')
 
     def get_form_kwargs(self):
         kwargs = super(ExerciseUpdateView, self).get_form_kwargs()
@@ -504,47 +548,42 @@ class ExerciseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return data
 
     def form_valid(self, form):
+        exercise = form.save(commit=False)
+        exercise.author = self.request.user
+
+        course_category = self.request.POST.get('course_category')
+        if course_category:
+            course_id, category_id = map(int, course_category.split('_'))
+            course = Course.objects.get(id=course_id)
+            category = ExerciseCategory.objects.get(id=category_id)
+            exercise.course = course
+            exercise.categories.clear()  # Clear existing categories
+            exercise.categories.add(category)
+
         context = self.get_context_data()
-        questions = context['questions']
-        choices = context['choices']
+        questions_formset = context['questions']
+        choices_formsets = context['choices']
 
-        with transaction.atomic():
-            self.object = form.save(commit=False)
-            self.object.author = self.request.user
+        if questions_formset.is_valid():
+            with transaction.atomic():
+                exercise.save()
 
-            course_id = form.cleaned_data.get('course')
-            category_id = form.cleaned_data.get('category')
+                for question_form, choice_formset in zip(questions_formset, choices_formsets):
+                    if question_form.is_valid() and choice_formset.is_valid():
+                        question_instance = question_form.save(commit=False)
+                        question_instance.exercise = exercise
+                        question_instance.save()
 
-            print(f"Course ID from form: {course_id}, Category ID from form: {category_id}")
-
-            if course_id:
-                self.object.course = Course.objects.get(id=course_id)
-                print(f"Assigned Course: {self.object.course}")
-
-            if category_id:
-                category = ExerciseCategory.objects.get(id=category_id)
-                self.object.category = category
-                print(f"Assigned Category: {self.object.category}")
-
-            self.object.save()
-
-            if questions.is_valid():
-                questions.save()
-                for question_formset in choices:
-                    if question_formset.is_valid():
-                        question_formset.save()
-
-            # Save the form and related question and choice formsets
-            form.save_m2m()
-            for question_formset in choices:
-                if question_formset.is_valid():
-                    question_formset.save()
+                        for choice_form in choice_formset:
+                            choice_instance = choice_form.save(commit=False)
+                            choice_instance.question = question_instance
+                            choice_instance.save()
 
         return super(ExerciseUpdateView, self).form_valid(form)
 
     def test_func(self):
         exercise = self.get_object()
-        return self.request.user == exercise.author
+        return self.request.user.is_superuser or self.request.user == exercise.author
 
 
 
@@ -554,7 +593,7 @@ class ExerciseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         exercise = self.get_object()
-        return self.request.user == exercise.author
+        return self.request.user.is_superuser or self.request.user == exercise.author
 
     def delete(self, *args, **kwargs):
         # Get the exercise object
@@ -610,7 +649,7 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return context
 
     def test_func(self):
-        return self.request.user.profile.role == 'TEACHER'
+        return self.request.user.is_superuser or self.request.user.profile.role == 'TEACHER'
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -625,7 +664,9 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
 
     def test_func(self):
         attempt = self.get_object()
-        return self.request.user == attempt.user or self.request.user.profile.role == 'TEACHER'
+        is_teacher = self.request.user.profile.role == 'TEACHER'
+        is_author_of_attempt = self.request.user == attempt.user
+        return self.request.user.is_superuser or is_teacher or is_author_of_attempt
 
     def get_object(self, queryset=None):
         user_id = self.kwargs.get('user_id')
@@ -685,6 +726,7 @@ class CourseListView(ListView):
         return context
 
 
+
 class CourseDetailView(LoginRequiredMixin, DetailView):
     model = Course
     template_name = 'learning_app/course_detail.html'
@@ -693,7 +735,27 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         course = self.get_object()
-        context['categories_with_weights'] = course.categories.all()
+        context['lessons'] = Lesson.objects.filter(course=course)
+
+        # Prepare categories with exercises and user-specific grades
+        categories_with_exercises = []
+        for category in course.categories.all():
+            exercises = Exercise.objects.filter(course=course, categories=category)
+            exercises_with_user_grades = []
+            for exercise in exercises:
+                attempts = Attempt.objects.filter(exercise=exercise, user=self.request.user)
+                highest_score = attempts.aggregate(Max('score'))['score__max'] or "N/A"
+                exercises_with_user_grades.append({
+                    'exercise': exercise,
+                    'attempts': attempts,
+                    'highest_score': highest_score
+                })
+            categories_with_exercises.append({
+                'category': category,
+                'exercises_info': exercises_with_user_grades
+            })
+
+        context['categories_with_exercises'] = categories_with_exercises
         return context
 
 
@@ -726,7 +788,7 @@ class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return super().form_valid(form)
 
     def test_func(self):
-        return self.request.user.profile.role == 'TEACHER'
+        return self.request.user.is_superuser or self.request.user.profile.role == 'TEACHER'
 
 
 class UpdateCourseView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -787,28 +849,22 @@ class UpdateCourseView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         course = self.get_object()
-        return self.request.user == course.author
+        return self.request.user.is_superuser or self.request.user == course.author
 
 
-class CourseDeleteView(DeleteView):
+class CourseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Course
     success_url = reverse_lazy('course-list')  # Redirect to course list after deletion
     template_name = 'learning_app/course_confirm_delete.html'
 
-    def delete(self, request, *args, **kwargs):
+    def delete(self, *args, **kwargs):
         self.object = self.get_object()
-        # Transfer lessons, exercises, choices, user answers, and questions to 'GEN-101'
-        Lesson.objects.filter(course=self.object).update(course=Course.objects.get(code='GEN-101'))
-        Exercise.objects.filter(course=self.object).update(course=Course.objects.get(code='GEN-101'))
-        Choice.objects.filter(question__exercise__course=self.object).update(
-            question__exercise__course=Course.objects.get(code='GEN-101'))
-        UserAnswer.objects.filter(exercise__course=self.object).update(
-            exercise__course=Course.objects.get(code='GEN-101'))
-        Question.objects.filter(exercise__course=self.object).update(
-            exercise__course=Course.objects.get(code='GEN-101'))
+        return super().delete(*args, **kwargs)
 
-        # Call the parent class's delete method to delete the course
-        return super().delete(request, *args, **kwargs)
+    def test_func(self):
+        course = self.get_object()
+        return self.request.user.is_superuser or self.request.user == course.author
+
 
 
 class CourseEnrollView(LoginRequiredMixin, View):

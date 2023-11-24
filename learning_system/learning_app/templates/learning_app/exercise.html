@@ -12,6 +12,12 @@
     </form>
 </div>
 
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary mb-3">Create Default Exercise</button>
+</form>
+
+
 
     {% for exercise in exercises %}
     <article class="media content-section">
