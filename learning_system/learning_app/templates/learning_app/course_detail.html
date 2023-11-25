@@ -30,41 +30,84 @@
 </article>
 
 <!--------------------------------------categories and their weights-------------------------------------------------->
-<div class="media content-section">
-    <div class="media-body">
-        <div class="article-metadata">
-            <h3 style="border-top: none;">Course Categories and Weights</h3>
-        </div>
-
-        <div class="container">
+<div class="row">
+    <!-- Course Categories and Weights Section -->
+    <div class="col-md-6">
+        <div class="content-section">
+            <h3>Course Categories and Weights</h3>
             <table class="table">
                 <thead>
                     <tr>
-                        {% for category in object.categories.all %}
-                            <th>{{ category.name }}</th>
-                        {% empty %}
-                            <th>No categories defined for this course.</th>
-                        {% endfor %}
+                        <th>Category Name</th>
+                        <th>Weight</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% for category in object.categories.all %}
                     <tr>
-                        {% for category in object.categories.all %}
-                            <td>{{ category.weight }}%</td>
-                        {% empty %}
-                            <td></td>
-                        {% endfor %}
+                        <td>{{ category.name }}</td>
+                        <td>{{ category.weight }}%</td>
                     </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2">No categories defined for this course.</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!--------------------------------------Letter Grade Minimums -------------------------------------------------->
+    <div class="col-md-6">
+        <div class="content-section">
+            <h3>Letter Grade Minimums</h3>
+            <table class="table">
+                <tr>
+                    <th>Grade</th>
+                    <th>Minimum %</th>
+                </tr>
+                <tr>
+                    <td>A Grade</td>
+                    <td>{{ a_grade_min }}%</td>
+                </tr>
+                <tr>
+                    <td>B Grade</td>
+                    <td>{{ b_grade_min }}%</td>
+                </tr>
+                <tr>
+                    <td>C Grade</td>
+                    <td>{{ c_grade_min }}%</td>
+                </tr>
+                <tr>
+                    <td>D Grade</td>
+                    <td>{{ d_grade_min }}%</td>
+                </tr>
             </table>
         </div>
     </div>
 </div>
 
 
-<!---------------------------------------------Display the grades----------------------------------------------------->
+
+<!---------------------------------------------Display the exercises amd grades --------------------------------------->
 <div class="content-section">
-    <h2>Course Grades</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Weighted Grade</th>
+                <th>Letter Grade</th>
+                <th>Percentile Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ weighted_grade }}%</td>
+                <td>{{ letter_grade }}</td>
+                <td>{{ percentile_score }}</td>
+            </tr>
+        </tbody>
+    </table>
     {% for category_data in categories_with_exercises %}
         <div class="category-container">
             <table class="table">
@@ -82,11 +125,17 @@
                                     {{ exercise_info.exercise.title }}
                                 </a>
                             </td>
-                            <td>{{ exercise_info.highest_score }}</td>
+                            <td>
+                                {% if exercise_info.highest_score != "N/A" %}
+                                    {{ exercise_info.highest_score }} / {{ exercise_info.exercise.questions.count }}
+                                {% else %}
+                                    {{ exercise_info.highest_score }}
+                                {% endif %}
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="2">No {{ category_data.category.name }} available in this category.</td>
+                            <td colspan="2">No exercises available in this category.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -95,17 +144,17 @@
     {% endfor %}
 </div>
 
-
+<!---------------------------------------------Display the lessons----------------------------------------------------->
 
 <div class="content-section">
     <h2>Lessons</h2>
     {% if lessons %}
-            {% for lesson in lessons %}
-                <a href="{% url 'lesson-detail' lesson.id %}">{{ lesson.title }}</a>
-                <br>
-            {% endfor %}
+        {% for lesson in lessons %}
+            <a href="{% url 'lesson-detail' lesson.id %}">{{ lesson.title }}</a>
+            <br>
+        {% endfor %}
     {% else %}
-        <p>No lessons available.</p>
+        <p>No lessons available for this course.</p>
     {% endif %}
 </div>
 

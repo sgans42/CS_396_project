@@ -15,6 +15,12 @@
                 {% endif %}
             </div>
             <h2 class="article-title">{{ object.title }}</h2>
+            {% if course %}
+                <div>
+                    <h3>Course: <a href="{% url 'course-detail' course.id %}">{{ course.title }}</a></h3>
+                </div>
+            {% endif %}
+
             <p class="article-content">{{ object.content }}</p>
 
             {% if object.video %}

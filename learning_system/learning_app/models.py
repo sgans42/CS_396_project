@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from PIL import Image
 from django.urls import reverse
+from django.db.models import Max
 
 # Create your models here.
 
@@ -29,6 +30,17 @@ class ExerciseCategory(models.Model):
         return self.name
 
 
+def calculate_percentile_score(user_score, all_scores):
+    """Calculate the percentile score for a given user score."""
+    scores_less_or_equal_to_user = sum(score <= user_score for score in all_scores)
+    total_scores = len(all_scores)
+
+    # Calculate percentile
+    # The formula is adjusted to handle ties and ensure the highest score gets 100th percentile
+    percentile_score = (scores_less_or_equal_to_user / total_scores) * 100
+    return round(percentile_score, 2)
+
+
 class Course(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='courses')
     code = models.CharField(max_length=20, unique=True)
@@ -41,9 +53,66 @@ class Course(models.Model):
         on_delete=models.CASCADE,
         related_name='taught_courses'
     )
+    a_grade_min = models.DecimalField(max_digits=5, decimal_places=2, default=90.00)
+    b_grade_min = models.DecimalField(max_digits=5, decimal_places=2, default=80.00)
+    c_grade_min = models.DecimalField(max_digits=5, decimal_places=2, default=70.00)
+    d_grade_min = models.DecimalField(max_digits=5, decimal_places=2, default=60.00)
+
 
     def __str__(self):
         return f"{self.title} ({self.code})"
+
+    def calculate_weighted_grade_for_user(self, user):
+        total_weighted_score = 0.0
+        total_applicable_weight = 0.0
+
+        for category in self.categories.all():
+            category_score = 0.0
+            category_max_score = 0.0
+            user_has_score = False
+
+            exercises = Exercise.objects.filter(course=self, categories=category)
+            for exercise in exercises:
+                attempts = Attempt.objects.filter(exercise=exercise, user=user)
+                highest_score = attempts.aggregate(Max('score'))['score__max']
+                if highest_score is not None:
+                    category_score += float(highest_score)  # Convert Decimal to float
+                    user_has_score = True
+                category_max_score += exercise.questions.count()
+
+            if user_has_score and category_max_score > 0:
+                weighted_score = (category_score / category_max_score) * float(category.weight)  # Convert Decimal to float
+                total_weighted_score += weighted_score
+                total_applicable_weight += float(category.weight)  # Convert Decimal to float
+
+        if total_applicable_weight > 0:
+            weighted_grade = total_weighted_score / total_applicable_weight * 100
+            return round(weighted_grade, 2)
+        else:
+            return 0
+
+
+    def calculate_letter_grade(self, weighted_grade):
+        if weighted_grade >= self.a_grade_min:
+            return "A"
+        elif weighted_grade >= self.b_grade_min:
+            return "B"
+        elif weighted_grade >= self.c_grade_min:
+            return "C"
+        elif weighted_grade >= self.d_grade_min:
+            return "D"
+        else:
+            return "F"
+
+    def get_all_weighted_grades(self):
+        """Retrieve all weighted grades for students in this course."""
+        weighted_grades = []
+        for student in self.enrolled_students.all():
+            weighted_grade = self.calculate_weighted_grade_for_user(student)
+            if weighted_grade is not None:
+                weighted_grades.append(weighted_grade)
+        return weighted_grades
+
 
 
 class Exercise(models.Model):

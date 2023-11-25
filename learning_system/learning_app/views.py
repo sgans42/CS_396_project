@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 
 from .models import (Post, Reply, Lesson, Exercise, Question, Choice, UserAnswer, Attempt, Course, Subject, Profile,
-                     ExerciseCategory)
+                     ExerciseCategory, calculate_percentile_score)
 from django.contrib import messages
 from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyForm, LessonForm, ExerciseForm,
                     QuestionFormSet, ChoiceFormSet, QuizForm, CourseSearchForm, CourseForm, CourseSelectForm,
@@ -22,6 +22,7 @@ from django import forms
 from django.http import HttpResponseRedirect, Http404
 from django.db import models
 from django.utils import timezone
+
 
 
 
@@ -263,6 +264,15 @@ class LessonListView(ListView):
 
 class LessonDetailView(DetailView):
     model = Lesson
+    template_name = 'learning_app/lesson_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lesson = self.get_object()
+        context['course'] = lesson.course  # Add the course to the context
+        return context
+
+
 
 
 class LessonCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -735,28 +745,53 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         course = self.get_object()
-        context['lessons'] = Lesson.objects.filter(course=course)
+        user = self.request.user
 
-        # Prepare categories with exercises and user-specific grades
+        # Gather categories and their exercises
         categories_with_exercises = []
         for category in course.categories.all():
             exercises = Exercise.objects.filter(course=course, categories=category)
-            exercises_with_user_grades = []
+            exercises_info = []
             for exercise in exercises:
-                attempts = Attempt.objects.filter(exercise=exercise, user=self.request.user)
-                highest_score = attempts.aggregate(Max('score'))['score__max'] or "N/A"
-                exercises_with_user_grades.append({
+                attempts = Attempt.objects.filter(exercise=exercise, user=user)
+                highest_score = attempts.aggregate(Max('score'))['score__max']
+                exercises_info.append({
                     'exercise': exercise,
-                    'attempts': attempts,
-                    'highest_score': highest_score
+                    'highest_score': highest_score if highest_score is not None else "N/A"
                 })
             categories_with_exercises.append({
                 'category': category,
-                'exercises_info': exercises_with_user_grades
+                'exercises_info': exercises_info,
             })
 
-        context['categories_with_exercises'] = categories_with_exercises
+        # Calculate the weighted grade for the user
+        weighted_grade = course.calculate_weighted_grade_for_user(user)
+
+        # Determine the letter grade
+        letter_grade = course.calculate_letter_grade(weighted_grade)
+
+        # Retrieve all weighted grades for the course
+        all_weighted_grades = course.get_all_weighted_grades()
+
+        # Calculate percentile score for the current user
+        user_percentile = calculate_percentile_score(weighted_grade, all_weighted_grades)
+
+        # Add data to context
+        context.update({
+            'categories_with_exercises': categories_with_exercises,
+            'weighted_grade': weighted_grade,
+            'letter_grade': letter_grade,
+            'percentile_score': user_percentile,
+            'a_grade_min': course.a_grade_min,
+            'b_grade_min': course.b_grade_min,
+            'c_grade_min': course.c_grade_min,
+            'd_grade_min': course.d_grade_min,
+            'lessons': Lesson.objects.filter(course=course)
+        })
+
         return context
+
+
 
 
 class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -768,6 +803,10 @@ class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         course = form.save(commit=False)
         course.author = self.request.user
+        course.a_grade_min = form.cleaned_data['a_grade_min']
+        course.b_grade_min = form.cleaned_data['b_grade_min']
+        course.c_grade_min = form.cleaned_data['c_grade_min']
+        course.d_grade_min = form.cleaned_data['d_grade_min']
         course.save()
 
         num_categories = form.cleaned_data['num_categories']
@@ -798,6 +837,12 @@ class UpdateCourseView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy('course-list')
 
     def form_valid(self, form):
+        course = form.save(commit=False)
+        course.author = self.request.user
+        course.a_grade_min = form.cleaned_data['a_grade_min']
+        course.b_grade_min = form.cleaned_data['b_grade_min']
+        course.c_grade_min = form.cleaned_data['c_grade_min']
+        course.d_grade_min = form.cleaned_data['d_grade_min']
         total_weight = 0
         course = form.save()  # Save the course instance
 

@@ -34,7 +34,7 @@
 
                             {% if user.profile.role == 'STUDENT' %}
 
-                            {% elif user.profile.role == 'TEACHER' or request.user.is_superuser %}
+                            {% elif user.profile.role == 'TEACHER' %}
                                 <a class="nav-item nav-link" href="{% url 'grade-detail' %}"> Student grades </a>
                             {% endif %}
                         {% endif %}

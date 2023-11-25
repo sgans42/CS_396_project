@@ -10,6 +10,15 @@
     {{ form.title|as_crispy_field }}
     {{ form.description|as_crispy_field }}
 
+    <h3>Letter Grade Minimums</h3>
+    <div class="form-group">
+        {{ form.a_grade_min|as_crispy_field }}
+        {{ form.b_grade_min|as_crispy_field }}
+        {{ form.c_grade_min|as_crispy_field }}
+        {{ form.d_grade_min|as_crispy_field }}
+    </div>
+
+
     <h3>Number of Categories</h3>
     <div class="form-group">
         <label for="num_categories">Number of Categories</label>

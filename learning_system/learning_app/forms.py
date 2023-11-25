@@ -138,15 +138,37 @@ class CourseForm(forms.ModelForm):
         required=False,
         widget=forms.HiddenInput()
     )
+    a_grade_min = forms.DecimalField(max_digits=5, decimal_places=2, required=True)
+    b_grade_min = forms.DecimalField(max_digits=5, decimal_places=2, required=True)
+    c_grade_min = forms.DecimalField(max_digits=5, decimal_places=2, required=True)
+    d_grade_min = forms.DecimalField(max_digits=5, decimal_places=2, required=True)
+
 
     class Meta:
         model = Course
-        fields = ['subject', 'code', 'title', 'description', 'num_categories']
+        fields = ['subject', 'code', 'title', 'description', 'num_categories', 'a_grade_min', 'b_grade_min', 'c_grade_min', 'd_grade_min']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        a_min = cleaned_data.get('a_grade_min')
+        b_min = cleaned_data.get('b_grade_min')
+        c_min = cleaned_data.get('c_grade_min')
+        d_min = cleaned_data.get('d_grade_min')
+
+        if not (a_min > b_min > c_min > d_min):
+            raise forms.ValidationError("Grade minimums must be in descending order (A > B > C > D).")
+
+        return cleaned_data
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
             self.fields['num_categories'].initial = self.instance.categories.count()
+            self.fields['a_grade_min'].initial = self.instance.a_grade_min
+            self.fields['b_grade_min'].initial = self.instance.b_grade_min
+            self.fields['c_grade_min'].initial = self.instance.c_grade_min
+            self.fields['d_grade_min'].initial = self.instance.d_grade_min
             for idx, category in enumerate(self.instance.categories.all(), start=1):
                 self.fields[f'category_name_{idx}'] = forms.CharField(
                     initial=category.name,
