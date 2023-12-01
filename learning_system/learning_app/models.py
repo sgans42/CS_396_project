@@ -115,6 +115,18 @@ class Course(models.Model):
                 weighted_grades.append(weighted_grade)
         return weighted_grades
 
+    def get_letter_grade_distribution(self):
+        """Retrieve the distribution of letter grades for this course."""
+        letter_grades = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
+
+        for student in self.enrolled_students.all():
+            weighted_grade = self.calculate_weighted_grade_for_user(student)
+            letter_grade = self.calculate_letter_grade(weighted_grade)
+            if letter_grade in letter_grades:
+                letter_grades[letter_grade] += 1
+
+        return letter_grades
+
 
 class Exercise(models.Model):
     title = models.CharField(max_length=200)

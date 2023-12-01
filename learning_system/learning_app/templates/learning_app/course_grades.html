@@ -1,0 +1,51 @@
+{% extends "learning_app/base.html" %}
+
+{% block content %}
+    <!-- Include Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <div class="content-section">
+        <h2>Course Grades by Subject</h2>
+        {% for subject in subjects %}
+            <div>
+                <h3>{{ subject.name }}</h3>
+                <canvas id="barChart-{{ subject.id }}" width="400" height="150"></canvas>
+            </div>
+        {% endfor %}
+    </div>
+
+<script>
+    {% for subject in subjects %}
+        var ctx = document.getElementById('barChart-{{ subject.id }}').getContext('2d');
+        var subjectData = {{ subject_grade_data|safe }}["{{ subject.name }}"];
+        var myBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['A', 'B', 'C', 'D', 'F'],
+                datasets: [{
+                    label: '{{ subject.name }} Grades',
+                    data: ['A', 'B', 'C', 'D', 'F'].map(grade => subjectData[grade]),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)'
+                    ],
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1, // Ensure y-axis steps in whole numbers
+                            precision: 0 // Avoid decimal values
+                        }
+                    }
+                }
+            }
+        });
+    {% endfor %}
+</script>
+{% endblock content %}

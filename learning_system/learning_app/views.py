@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -15,7 +17,7 @@ from .forms import (UserRegisterForm, UserUpdateForm, ProfileUpdateForm, ReplyFo
                     UpdateChoiceFormSet, PostSearchForm, ExerciseCategoryForm
                     )
 from django.contrib.auth.decorators import login_required
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .forms import PostForm
 from django import forms
@@ -635,32 +637,42 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
             exercise_grades = []
             letter_grade_distribution = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
+            student_weighted_grades = []
 
             for exercise in exercises:
                 grades_data = []
                 students = User.objects.filter(attempt__exercise=exercise).distinct()
+
                 for student in students:
                     attempts = Attempt.objects.filter(exercise=exercise, user=student).order_by('attempt_number')
-                    attempts_list = list(attempts[:3]) + [None] * (3 - attempts.count())
                     highest_score = attempts.aggregate(Max('score'))['score__max'] or 0
 
-                    # Calculate letter grade for each student
                     weighted_grade = course.calculate_weighted_grade_for_user(student)
+                    student_weighted_grades.append((student.username, weighted_grade))
                     letter_grade = course.calculate_letter_grade(weighted_grade)
                     letter_grade_distribution[letter_grade] += 1
 
                     grades_data.append({
                         'student': student,
-                        'attempts': attempts_list,
+                        'attempts': list(attempts[:3]) + [None] * (3 - attempts.count()),
                         'highest_score': highest_score,
+                        'weighted_grade': weighted_grade,
                     })
 
                 exercise_grades.append((exercise, grades_data))
+
+            highest_weighted_score = max(student_weighted_grades, key=lambda x: x[1], default=(None, 0))[1]
+            lowest_weighted_score = min(student_weighted_grades, key=lambda x: x[1], default=(None, 0))[1]
+            average_weighted_score = round(sum(wg[1] for wg in student_weighted_grades) / len(student_weighted_grades), 2) if student_weighted_grades else 0
 
             context.update({
                 'selected_course': course,
                 'exercise_grades': exercise_grades,
                 'letter_grade_distribution': letter_grade_distribution,
+                'highest_weighted_score': highest_weighted_score,
+                'lowest_weighted_score': lowest_weighted_score,
+                'average_weighted_score': average_weighted_score,
+                'student_weighted_grades': student_weighted_grades,
             })
 
         return context
@@ -672,7 +684,6 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
-
 
 
 class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
@@ -715,6 +726,38 @@ class GradeExerciseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVie
             })
 
         context['questions_and_answers'] = questions_and_answers
+        return context
+
+
+class CourseGradesView(TemplateView):
+    template_name = 'learning_app/course_grades.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        subjects = Subject.objects.all()
+        subject_grade_data = {}
+
+        for subject in subjects:
+            # Initialize grade distribution for the subject
+            subject_grades = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
+
+            # Get all courses for this subject
+            courses = Course.objects.filter(subject=subject)
+
+            for course in courses:
+                # Get all weighted grades for students in the course
+                all_weighted_grades = course.get_all_weighted_grades()
+
+                # Convert weighted grades to letter grades and accumulate
+                for weighted_grade in all_weighted_grades:
+                    letter_grade = course.calculate_letter_grade(weighted_grade)
+                    if letter_grade in subject_grades:
+                        subject_grades[letter_grade] += 1
+
+            subject_grade_data[subject.name] = subject_grades
+
+        context['subjects'] = subjects
+        context['subject_grade_data'] = subject_grade_data
         return context
 
 

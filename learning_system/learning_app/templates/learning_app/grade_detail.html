@@ -2,47 +2,92 @@
 {% load crispy_forms_tags %}
 {% load static %}
 
-{% block head %}
-    <!-- Load Google Charts -->
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-    <!-- Define the drawChart function outside the google.charts.load -->
-    <script type="text/javascript">
-        function drawChart() {
-            var data = google.visualization.arrayToDataTable([
-                ['Grade', 'Number of Students'],
-                ['A', 10],
-                ['B', 15],
-                ['C', 5],
-                ['D', 2],
-                ['F', 3]
-            ]);
-
-            var options = {
-                title: 'Letter Grade Distribution',
-                is3D: true,
-            };
-
-            var chart = new google.visualization.PieChart(document.getElementById('piechart'));
-            chart.draw(data, options);
-        }
-
-        // Load the Google Charts library and set the callback
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
-    </script>
-{% endblock %}
-
 {% block content %}
     <div class="content-section">
         <form method="get" id="courseSelectForm">
             {{ form|crispy }}
             <button type="submit" class="btn btn-primary">Select Course</button>
+            <a href="{% url 'course_grades' %}" class="btn btn-secondary">Course Grades</a>
+
         </form>
 
         {% if exercise_grades %}
             <h2>Grades for {{ selected_course.title }}</h2>
-            <div id="piechart" style="width: 900px; height: 500px;"></div>
+            <div>
+                <canvas id="myChart" style="width:100%;max-width:700px"></canvas>
+            </div>
+
+            <!-- Load Chart.js and Draw the Chart -->
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+            <script>
+                function drawPieChart() {
+                    var ctx = document.getElementById('myChart').getContext('2d');
+                    var myChart = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['A', 'B', 'C', 'D', 'F'],
+                            datasets: [{
+                                backgroundColor: [
+                                    'rgba(255, 99, 132, 0.2)',
+                                    'rgba(54, 162, 235, 0.2)',
+                                    'rgba(255, 206, 86, 0.2)',
+                                    'rgba(75, 192, 192, 0.2)',
+                                    'rgba(153, 102, 255, 0.2)'
+                                ],
+                                data: [
+                                    {{ letter_grade_distribution.A }},
+                                    {{ letter_grade_distribution.B }},
+                                    {{ letter_grade_distribution.C }},
+                                    {{ letter_grade_distribution.D }},
+                                    {{ letter_grade_distribution.F }}
+                                ]
+                            }]
+                        },
+                        options: {
+                            title: {
+                                display: true,
+                                text: 'Letter Grade Distribution'
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+
+                // Ensure Chart.js is fully loaded before drawing the chart
+                if (typeof Chart !== 'undefined') {
+                    drawPieChart();
+                } else {
+                    document.addEventListener('load', drawPieChart);
+                }
+            </script>
+
+            <!-- Score Summary -->
+            <h3>Score Summary</h3>
+            <p>Highest Weighted Score: {{ highest_weighted_score }}</p>
+            <p>Lowest Weighted Score: {{ lowest_weighted_score }}</p>
+            <p>Average Weighted Score: {{ average_weighted_score }}</p>
+
+            <!-- Scores List Table -->
+            <h3>Weighted Scores List</h3>
+            <button onclick="sortScores('asc')">Sort Ascending</button>
+            <button onclick="sortScores('desc')">Sort Descending</button>
+            <table id="scoresTable" class="table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Weighted Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for username, weighted_grade in student_weighted_grades %}
+                    <tr>
+                        <td>{{ username }}</td>
+                        <td>{{ weighted_grade }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
             <!-- Grades Table -->
             {% for exercise, grades_data in exercise_grades %}
@@ -54,7 +99,7 @@
                             <th>Attempt 1</th>
                             <th>Attempt 2</th>
                             <th>Attempt 3</th>
-                            <th>Highest Score</th>
+                            <th>Weighted Grade</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,7 +117,7 @@
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td>{{ grade.highest_score }}</td>
+                                <td>{{ grade.weighted_grade }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -82,4 +127,34 @@
             <p>Select a course to view grades.</p>
         {% endif %}
     </div>
+
+
+
+<script>
+    // Function to sort and update the scores table
+    function sortScores(order) {
+        let table, rows, switching, i, x, y, shouldSwitch;
+        table = document.getElementById("scoresTable");
+        switching = true;
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[1]; // Get the score cell
+                y = rows[i + 1].getElementsByTagName("TD")[1];
+                if ((order === 'asc' && parseFloat(x.innerHTML) > parseFloat(y.innerHTML)) ||
+                    (order === 'desc' && parseFloat(x.innerHTML) < parseFloat(y.innerHTML))) {
+                    shouldSwitch = true;
+                    break;
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+            }
+        }
+    }
+</script>
+
 {% endblock content %}

@@ -7,7 +7,7 @@ from .views import (PostListView, PostDetailView, PostCreateView, PostUpdateView
 					TakeExerciseDetailView, GradeListView, UserPostListView, UserLessonListView, UserExerciseListView,
 					CourseListView, CourseCreateView, CourseDetailView, CourseEnrollView,
 					GradeExerciseDetailView, TeacherCourseListView, StudentCourseListView, CourseGradeView,
-					UpdateCourseView, CourseDeleteView
+					UpdateCourseView, CourseDeleteView, CourseGradesView
 					)
 
 urlpatterns = [
@@ -60,5 +60,6 @@ urlpatterns = [
 # Grades
 	path('grades/', GradeListView.as_view(), name='grade-detail'),
 	path('grades/<int:user_id>/exercise/<int:exercise_id>/attempt/<int:attempt_id>/', GradeExerciseDetailView.as_view(),
-		 name='grades-exercise-detail')
+		 name='grades-exercise-detail'),
+	path('course-grades/', CourseGradesView.as_view(), name='course_grades'),
 ]
