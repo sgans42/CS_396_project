@@ -1,5 +1,37 @@
 {% extends "learning_app/base.html" %}
 {% load crispy_forms_tags %}
+{% load static %}
+
+{% block head %}
+    <!-- Load Google Charts -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <!-- Define the drawChart function outside the google.charts.load -->
+    <script type="text/javascript">
+        function drawChart() {
+            var data = google.visualization.arrayToDataTable([
+                ['Grade', 'Number of Students'],
+                ['A', 10],
+                ['B', 15],
+                ['C', 5],
+                ['D', 2],
+                ['F', 3]
+            ]);
+
+            var options = {
+                title: 'Letter Grade Distribution',
+                is3D: true,
+            };
+
+            var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+            chart.draw(data, options);
+        }
+
+        // Load the Google Charts library and set the callback
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+    </script>
+{% endblock %}
 
 {% block content %}
     <div class="content-section">
@@ -8,43 +40,46 @@
             <button type="submit" class="btn btn-primary">Select Course</button>
         </form>
 
-    {% if exercise_grades %}
-        <h2>Grades for {{ selected_course.title }}</h2>
-        {% for exercise, grades_data in exercise_grades %}
-            <h3>{{ exercise.title }}</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Student</th>
-                        <th>Attempt 1</th>
-                        <th>Attempt 2</th>
-                        <th>Attempt 3</th>
-                        <th>Highest Score</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for grade in grades_data %}
-                    <tr>
-                        <td>{{ grade.student.username }}</td>
-                        {% for attempt in grade.attempts %}
-                            <td>
-                                {% if attempt %}
-                                <a href="{% url 'grades-exercise-detail' user_id=grade.student.id exercise_id=exercise.id attempt_id=attempt.id %}">
-                                    {{ attempt.score }}
-                                </a>
-                                {% else %}
-                                    N/A  <!-- or any other placeholder you prefer -->
-                                {% endif %}
-                            </td>
+        {% if exercise_grades %}
+            <h2>Grades for {{ selected_course.title }}</h2>
+            <div id="piechart" style="width: 900px; height: 500px;"></div>
+
+            <!-- Grades Table -->
+            {% for exercise, grades_data in exercise_grades %}
+                <h3>{{ exercise.title }}</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Attempt 1</th>
+                            <th>Attempt 2</th>
+                            <th>Attempt 3</th>
+                            <th>Highest Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in grades_data %}
+                            <tr>
+                                <td>{{ grade.student.username }}</td>
+                                {% for attempt in grade.attempts %}
+                                    <td>
+                                        {% if attempt %}
+                                        <a href="{% url 'grades-exercise-detail' user_id=grade.student.id exercise_id=exercise.id attempt_id=attempt.id %}">
+                                            {{ attempt.score }}
+                                        </a>
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td>{{ grade.highest_score }}</td>
+                            </tr>
                         {% endfor %}
-                        <td>{{ grade.highest_score }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% endfor %}
-    {% else %}
-        <p>Select a course to view grades.</p>
-    {% endif %}
-</div>
+                    </tbody>
+                </table>
+            {% endfor %}
+        {% else %}
+            <p>Select a course to view grades.</p>
+        {% endif %}
+    </div>
 {% endblock content %}

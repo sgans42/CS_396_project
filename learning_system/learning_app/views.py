@@ -627,35 +627,42 @@ class GradeListView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
         if 'course' in self.request.GET:
             course_id = self.request.GET.get('course')
             course = Course.objects.get(pk=course_id)
             exercises = course.exercises.all()
 
             exercise_grades = []
+            letter_grade_distribution = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
+
             for exercise in exercises:
                 grades_data = []
                 students = User.objects.filter(attempt__exercise=exercise).distinct()
                 for student in students:
-                    attempts = Attempt.objects.filter(
-                        exercise=exercise,
-                        user=student
-                    ).order_by('attempt_number')
-
+                    attempts = Attempt.objects.filter(exercise=exercise, user=student).order_by('attempt_number')
                     attempts_list = list(attempts[:3]) + [None] * (3 - attempts.count())
-
                     highest_score = attempts.aggregate(Max('score'))['score__max'] or 0
+
+                    # Calculate letter grade for each student
+                    weighted_grade = course.calculate_weighted_grade_for_user(student)
+                    letter_grade = course.calculate_letter_grade(weighted_grade)
+                    letter_grade_distribution[letter_grade] += 1
+
                     grades_data.append({
                         'student': student,
                         'attempts': attempts_list,
                         'highest_score': highest_score,
                     })
+
                 exercise_grades.append((exercise, grades_data))
 
             context.update({
                 'selected_course': course,
                 'exercise_grades': exercise_grades,
+                'letter_grade_distribution': letter_grade_distribution,
             })
+
         return context
 
     def test_func(self):
@@ -933,41 +940,6 @@ class WeightAdjustmentForm(forms.Form):
 
 class CourseGradeView(LoginRequiredMixin, UserPassesTestMixin, View):
     template_name = 'learning_app/course_grade.html'
-
-    def test_func(self):
-        # Check if user is a teacher of the course
-        course = get_object_or_404(Course, pk=self.kwargs['pk'])
-        return self.request.user.profile.role == 'TEACHER' and self.request.user == course.author
-
-    def get(self, request, *args, **kwargs):
-        course = get_object_or_404(Course, pk=self.kwargs['pk'])
-        weight_form = WeightAdjustmentForm(course_id=course.id)
-        category_form = ExerciseCategoryForm()  # Assuming you have this form
-        context = {'weight_form': weight_form, 'category_form': category_form, 'course': course}
-        return render(request, self.template_name, context)
-
-    def post(self, request, *args, **kwargs):
-        course = get_object_or_404(Course, pk=self.kwargs['pk'])
-        weight_form = WeightAdjustmentForm(request.POST, course_id=course.id)
-        category_form = ExerciseCategoryForm(request.POST)
-
-        # Check if the weight form is valid
-        if weight_form.is_valid():
-            for field_name, weight in weight_form.cleaned_data.items():
-                if field_name.startswith('weight_'):
-                    category_id = int(field_name.split('_')[1])
-                    ExerciseCategory.objects.filter(id=category_id).update(weight=weight)
-            messages.success(request, 'Weights updated successfully.')
-
-        # Check if the category form is valid
-        if category_form.is_valid():
-            new_category = category_form.save(commit=False)
-            new_category.save()
-            messages.success(request, 'New category added successfully.')
-        else:
-            messages.error(request, 'Error adding new category.')
-
-        return self.get(request, *args, **kwargs)
 
 
 

@@ -31,13 +31,15 @@ class ExerciseCategory(models.Model):
 
 
 def calculate_percentile_score(user_score, all_scores):
-    """Calculate the percentile score for a given user score."""
-    scores_less_or_equal_to_user = sum(score <= user_score for score in all_scores)
+    if not all_scores:
+        return None
+
+    scores_less_than_user = sum(score < user_score for score in all_scores)
+    scores_equal_to_user = sum(score == user_score for score in all_scores)
     total_scores = len(all_scores)
 
     # Calculate percentile
-    # The formula is adjusted to handle ties and ensure the highest score gets 100th percentile
-    percentile_score = (scores_less_or_equal_to_user / total_scores) * 100
+    percentile_score = ((scores_less_than_user + 0.5 * scores_equal_to_user) / total_scores) * 100
     return round(percentile_score, 2)
 
 
@@ -112,7 +114,6 @@ class Course(models.Model):
             if weighted_grade is not None:
                 weighted_grades.append(weighted_grade)
         return weighted_grades
-
 
 
 class Exercise(models.Model):
